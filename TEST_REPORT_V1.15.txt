@@ -1,0 +1,16 @@
+TEST REPORT WEB V1.15
+
+PASS - JavaScript app.js syntax.
+PASS - JavaScript engine-worker.js syntax.
+PASS - JavaScript service-worker.js syntax.
+PASS - Python prompts.py syntax.
+PASS - Python web_api.py syntax.
+PASS - Lap du 12 cung voi du lieu mau 18/05/2023 17:18 Nu.
+PASS - Tao du 15 prompt theo dung thu tu.
+PASS - 12 prompt cung deu co dung 4 muc yeu cau.
+PASS - Prompt cung khong con muc "Y chinh".
+PASS - Buoc 14 chua du lieu Bat Tu day du.
+PASS - Buoc 15 la ket luan chung.
+PASS - Goi upload phang, khong co thu muc con.
+
+Luu y: Chua goi truc tiep Gemini Worker trong moi truong dong goi. Website co co che thu lai va tiep tuc neu mot buoc bi loi.

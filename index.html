@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
   <meta name="description" content="Lập lá số Tử Vi và Bát Tự trực tiếp trên trình duyệt, dựa trên bộ quy tắc desktop v1.3.">
-  <title>Tử Vi + Bát Tự — Web v1.14 tổng luận AI ngắn gọn</title>
+  <title>Tử Vi + Bát Tự — Web v1.15 tổng luận AI theo 15 bước</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css?v=1.3.0">
@@ -80,7 +80,7 @@
         <div class="progress-track"><div id="progressBar"></div></div>
         <small id="progressText">Đang tải bộ máy lần đầu...</small>
       </div>
-      <p class="privacy-note">Việc an lá số chạy trên thiết bị. Sau khi lập xong, website tự động gửi dữ liệu Tử Vi + Bát Tự qua Worker bảo mật để Gemini tạo báo cáo tổng luận gọn 2 phần.</p>
+      <p class="privacy-note">Việc an lá số chạy trên thiết bị. Sau khi lập xong, website tự động gửi dữ liệu Tử Vi + Bát Tự qua Worker bảo mật để Gemini tạo báo cáo theo thứ tự tổng quan, 12 cung, Bát Tự và kết luận.</p>
     </aside>
 
     <section class="workspace">
@@ -125,11 +125,11 @@
                 <span class="tag">Tự chạy sau khi lập lá số</span>
               </div>
               <div class="inline-gemini-actions">
-                <button id="runGeminiInlineButton" class="primary-button" type="button">Phân tích lại toàn bộ — 2 phần</button>
+                <button id="runGeminiInlineButton" class="primary-button" type="button">Phân tích lại toàn bộ — 15 bước</button>
                 <span class="muted">Báo cáo được chia 4 lượt để dài và ít bị cắt: đủ 12 cung, các trục liên kết, lưu niên và Bát Tự.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Sau khi lập lá số, Gemini sẽ tự động tổng luận. Báo cáo được rút gọn, dùng từ phổ thông và chia 2 phần để hạn chế mất nội dung.</p>
+                <p class="muted">Sau khi lập lá số, Gemini tự phân tích theo 15 bước: tổng quan, từng cung của 12 cung, Bát Tự và kết luận. Mỗi cung chỉ có 4 mục ngắn gọn.</p>
               </div>
             </section>
 
@@ -206,14 +206,14 @@
           </div>
 
           <div class="gemini-actions">
-            <button id="runGeminiButton" class="primary-button" type="button">Phân tích lại toàn bộ — 2 phần</button>
+            <button id="runGeminiButton" class="primary-button" type="button">Phân tích lại toàn bộ — 15 bước</button>
             <button id="copyGeminiButton" type="button">Sao chép kết quả</button>
             <button id="downloadGeminiButton" type="button">Tải kết quả</button>
             <button id="clearGeminiButton" type="button">Xóa kết quả</button>
           </div>
 
           <div class="ai-result-location-note">
-            Sau khi bấm Lập lá số, hệ thống tự tạo báo cáo gọn 2 phần và hiển thị ngay dưới Tứ Trụ. Nút trên chỉ dùng để phân tích lại.
+            Sau khi bấm Lập lá số, hệ thống tự tạo báo cáo theo 15 bước và hiển thị ngay dưới Tứ Trụ. Nếu một bước lỗi, các bước còn lại vẫn tiếp tục.
           </div>
         </section>
       </section>
@@ -230,7 +230,7 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.14 · Tổng luận Gemini gọn 2 phần · Khung địa chi cố định · Lưu niên 9 sao theo lá số tham chiếu.</p>
+    <p>Web v1.15 · Tổng luận Gemini theo 15 bước · Khung địa chi cố định · Lưu niên 9 sao theo lá số tham chiếu.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

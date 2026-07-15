@@ -1,0 +1,15 @@
+WEB V1.15 - TRINH TU BAO CAO AI 15 BUOC
+
+1. Doi luong gui Gemini thanh 15 buoc rieng:
+   - Tong quan la so.
+   - 12 cung theo thu tu Menh den Huynh De.
+   - Bat Tu.
+   - Ket luan chung.
+2. Moi cung chi con 4 muc:
+   - Co che van hanh.
+   - Bieu hien thuc te.
+   - Mat manh.
+   - Diem yeu/Rui ro co dieu kien.
+3. Moi cung gioi han khoang 70-110 tu.
+4. Neu mot buoc Gemini loi, cac buoc sau van tiep tuc; ket qua da co khong bi mat.
+5. Giao dien hien trang thai tung buoc va bao ro buoc nao chua hoan thanh.

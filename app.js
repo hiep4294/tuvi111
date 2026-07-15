@@ -22,7 +22,7 @@ const GEMINI_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
 const GEMINI_MODEL_KEY = "tuvi-gemini-model";
 const DEFAULT_GEMINI_ENDPOINT = "https://spring-bonus-6dfb.hiep4294.workers.dev";
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
-const WEB_VERSION = "1.13";
+const WEB_VERSION = "1.15";
 
 // Khung địa chi cố định theo thứ tự người dùng chốt.
 // Các cung chức năng và sao chỉ được gán vào khung này, không làm thay đổi vị trí địa chi.
@@ -169,11 +169,28 @@ async function testGeminiConnection(options = {}) {
 }
 
 const AUTO_GEMINI_REPORT_PARTS = Object.freeze([
-  "Tổng quan và 6 cung đầu",
-  "6 cung còn lại, Bát Tự và kết luận",
+  "Tổng quan lá số",
+  "Cung Mệnh",
+  "Cung Phụ Mẫu",
+  "Cung Phúc Đức",
+  "Cung Điền Trạch",
+  "Cung Quan Lộc",
+  "Cung Nô Bộc",
+  "Cung Thiên Di",
+  "Cung Tật Ách",
+  "Cung Tài Bạch",
+  "Cung Tử Tức",
+  "Cung Phu Thê",
+  "Cung Huynh Đệ",
+  "Bát Tự",
+  "Kết luận chung",
 ]);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function outputTokenLimitForStep(partIndex) {
+  return partIndex >= 1 && partIndex <= 12 ? 1200 : 1800;
+}
 
 async function requestGeminiPart(endpoint, prompt, model, partIndex) {
   let lastError = null;
@@ -185,15 +202,14 @@ async function requestGeminiPart(endpoint, prompt, model, partIndex) {
         body: JSON.stringify({
           prompt,
           model,
-          max_output_tokens: 4096,
+          max_output_tokens: outputTokenLimitForStep(partIndex),
           metadata: {
             chart_id: state.chart?.chart_id || null,
             prompt_kind: "auto_report_part",
-            report_part: partIndex + 1,
-            report_parts_total: AUTO_GEMINI_REPORT_PARTS.length,
-            contains_full_tuvi: true,
-            contains_full_bazi: true,
-            requested_compact_balanced_report: true,
+            report_step: partIndex + 1,
+            report_steps_total: AUTO_GEMINI_REPORT_PARTS.length,
+            step_title: AUTO_GEMINI_REPORT_PARTS[partIndex],
+            sequential_report: true,
           },
         }),
       });
@@ -209,8 +225,8 @@ async function requestGeminiPart(endpoint, prompt, model, partIndex) {
       lastError = error;
       const retryable = [429, 500, 502, 503, 504].includes(Number(error.status || 0));
       if (!retryable || attempt === 1) break;
-      setGeminiStatus(`Gemini bận, chờ thử lại phần ${partIndex + 1}/4...`, "busy");
-      await wait(6000);
+      setGeminiStatus(`Gemini bận, chờ thử lại bước ${partIndex + 1}/${AUTO_GEMINI_REPORT_PARTS.length}...`, "busy");
+      await wait(7000);
     }
   }
   throw lastError || new Error("Không gọi được Gemini.");
@@ -241,18 +257,18 @@ async function runGeminiAnalysis(options = {}) {
     button.dataset.label = button.textContent;
     button.textContent = "Gemini đang tổng luận...";
   }
-  setGeminiStatus("Đang chuẩn bị báo cáo gọn 2 phần", "busy");
+  setGeminiStatus(`Đang phân tích 15 bước`, "busy");
   $("geminiOutput").dataset.raw = "";
-  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang chuẩn bị báo cáo ngắn gọn, dễ hiểu. Dự kiến 2 lượt phân tích...</p></div>';
+  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang phân tích theo thứ tự: tổng quan → 12 cung → Bát Tự → kết luận.</p></div>';
   activateTab("chart");
   setTimeout(() => $("geminiResultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
   const rawParts = [];
   const htmlParts = [];
+  const failedSteps = [];
   let usageTokens = 0;
 
   try {
-    // Keep the editable full prompt available in the Prompt AI tab.
     try {
       const full = await callWorker("prompt", { kind: "full", index: 0 });
       $("promptKind").value = "full";
@@ -261,35 +277,40 @@ async function runGeminiAnalysis(options = {}) {
 
     for (let index = 0; index < AUTO_GEMINI_REPORT_PARTS.length; index += 1) {
       const title = AUTO_GEMINI_REPORT_PARTS[index];
-      setGeminiStatus(`Đang phân tích phần ${index + 1}/4`, "busy");
+      setGeminiStatus(`Đang phân tích bước ${index + 1}/${AUTO_GEMINI_REPORT_PARTS.length}`, "busy");
       $("geminiOutput").innerHTML = [
         ...htmlParts,
-        `<div class="ai-loading"><span></span><p>Phần ${index + 1}/4: ${html(title)}...</p></div>`,
+        `<div class="ai-loading"><span></span><p>Bước ${index + 1}/${AUTO_GEMINI_REPORT_PARTS.length}: ${html(title)}...</p></div>`,
       ].join("");
 
-      const promptResult = await callWorker("prompt", { kind: "auto_report_part", index });
-      const prompt = String(promptResult.prompt || "").trim();
-      if (!prompt) throw new Error(`Prompt phần ${index + 1} đang trống.`);
+      try {
+        const promptResult = await callWorker("prompt", { kind: "auto_report_part", index });
+        const prompt = String(promptResult.prompt || "").trim();
+        if (!prompt) throw new Error(`Prompt bước ${index + 1} đang trống.`);
 
-      const data = await requestGeminiPart(endpoint, prompt, model, index);
-      const sectionHeading = `PHẦN ${index + 1}/${AUTO_GEMINI_REPORT_PARTS.length} — ${title.toUpperCase()}`;
-      rawParts.push(`# ${sectionHeading}\n\n${data.text}`);
-      htmlParts.push(`<section class="ai-report-part"><h2>${html(sectionHeading)}</h2>${renderMarkdownSafe(data.text)}</section>`);
-      usageTokens += Number(data.usage?.total_token_count || data.usage?.totalTokenCount || 0);
+        const data = await requestGeminiPart(endpoint, prompt, model, index);
+        const sectionHeading = `${index + 1}. ${title.toUpperCase()}`;
+        rawParts.push(`# ${sectionHeading}\n\n${data.text}`);
+        htmlParts.push(`<section class="ai-report-part"><h2>${html(sectionHeading)}</h2>${renderMarkdownSafe(data.text)}</section>`);
+        usageTokens += Number(data.usage?.total_token_count || data.usage?.totalTokenCount || 0);
+      } catch (error) {
+        failedSteps.push(`${index + 1}. ${title}`);
+        const message = `Không hoàn thành bước này: ${error.message}`;
+        rawParts.push(`# ${index + 1}. ${title.toUpperCase()}\n\n${message}`);
+        htmlParts.push(`<section class="ai-report-part ai-step-error"><h2>${html(`${index + 1}. ${title.toUpperCase()}`)}</h2><div class="ai-error">${html(message)}</div></section>`);
+      }
+
       $("geminiOutput").dataset.raw = rawParts.join("\n\n---\n\n");
       $("geminiOutput").innerHTML = htmlParts.join("");
-
-      if (index < AUTO_GEMINI_REPORT_PARTS.length - 1) await wait(900);
+      if (index < AUTO_GEMINI_REPORT_PARTS.length - 1) await wait(850);
     }
 
-    $("geminiOutput").innerHTML = `<div class="ai-meta">Báo cáo tự động 2 phần · Mô hình: ${html(model)}${usageTokens ? ` · Tổng token ghi nhận: ${html(usageTokens)}` : ""}</div>${htmlParts.join("")}`;
-    setGeminiStatus("Đã hoàn thành báo cáo gọn", "ready");
-    toast("Đã lập lá số và hoàn thành tổng luận AI");
-  } catch (error) {
-    const completed = htmlParts.length;
-    $("geminiOutput").dataset.raw = rawParts.join("\n\n---\n\n");
-    $("geminiOutput").innerHTML = `${htmlParts.join("")}<div class="ai-error"><b>Báo cáo dừng tại phần ${completed + 1}/${AUTO_GEMINI_REPORT_PARTS.length}.</b><br>${html(error.message)}<br>Có thể bấm “Phân tích lại toàn bộ” để chạy lại.</div>`;
-    setGeminiStatus(`Phân tích lỗi sau ${completed}/${AUTO_GEMINI_REPORT_PARTS.length} phần`, "error");
+    const summary = failedSteps.length
+      ? `Hoàn thành ${AUTO_GEMINI_REPORT_PARTS.length - failedSteps.length}/${AUTO_GEMINI_REPORT_PARTS.length} bước · Thiếu: ${failedSteps.join(", ")}`
+      : `Hoàn thành đủ ${AUTO_GEMINI_REPORT_PARTS.length} bước`;
+    $("geminiOutput").innerHTML = `<div class="ai-meta">${html(summary)} · Mô hình: ${html(model)}${usageTokens ? ` · Tổng token ghi nhận: ${html(usageTokens)}` : ""}</div>${htmlParts.join("")}`;
+    setGeminiStatus(failedSteps.length ? "Hoàn thành nhưng còn bước lỗi" : "Đã hoàn thành báo cáo", failedSteps.length ? "busy" : "ready");
+    toast(failedSteps.length ? "Đã lập lá số; một số bước AI chưa hoàn thành" : "Đã lập lá số và hoàn thành tổng luận AI");
   } finally {
     state.geminiBusy = false;
     for (const button of buttons) {
@@ -323,7 +344,7 @@ function setEngineState(mode, message) {
 }
 
 function initWorker() {
-  const worker = new Worker("engine-worker.js?v=1.13");
+  const worker = new Worker("engine-worker.js?v=1.15");
   state.worker = worker;
   worker.onmessage = (event) => {
     const msg = event.data || {};

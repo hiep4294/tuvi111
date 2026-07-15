@@ -1,4 +1,4 @@
-/* Tu Vi + Bat Tu Web - Pyodide worker v1.14 */
+/* Tu Vi + Bat Tu Web - Pyodide worker v1.15 */
 const PYODIDE_VERSION = "0.27.7";
 const PYODIDE_SOURCES = [
   {
