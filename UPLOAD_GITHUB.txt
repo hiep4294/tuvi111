@@ -1,9 +1,13 @@
-WEB V1.12 DẠNG PHẲNG
+HUONG DAN UPLOAD WEB V1.13
 
-1. Giải nén TuViBatTuWeb_v1.12_Flat_Upload.zip.
-2. Chọn toàn bộ file bên trong.
-3. Upload trực tiếp vào root repository GitHub.
-4. Giữ nguyên engine.zip, không giải nén.
-5. Commit: Fix annual stars reference profile v1.12
-6. Mở: https://hiep4294.github.io/tuvi/?v=112
-7. Nếu còn bản cũ: xóa Service Worker, Clear site data, Ctrl+Shift+R.
+1. Giai nen TuViBatTuWeb_v1.13_Flat_Upload.zip.
+2. Chon tat ca file ben trong va upload vao thu muc goc repository GitHub.
+3. Giu nguyen engine.zip, khong giai nen.
+4. Chap nhan ghi de file cu.
+5. Commit: Auto Gemini long report v1.13
+6. Mo: https://hiep4294.github.io/tuvi/?v=113
+7. Neu con cache cu: F12 > Application > Service Workers > Unregister > Storage > Clear site data > Ctrl+Shift+R.
+
+LUU Y
+- Sau khi bam Lap la so, du lieu Tu Vi + Bat Tu se tu dong gui qua Gemini Worker.
+- Bao cao gom 4 luot nen thoi gian xu ly va han muc Gemini se cao hon ban cu.

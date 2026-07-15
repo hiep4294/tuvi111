@@ -1,0 +1,12 @@
+WEB V1.13 - TU DONG TONG LUAN AI DAI
+
+1. Sau khi lap la so xong, website tu dong goi Gemini; khong can bam nut Phan tich.
+2. Bao cao duoc chia thanh 4 luot de tang do dai va giam nguy co bi cat:
+   - Phan 1: Tong quan, Menh, Phu Mau, Phuc Duc.
+   - Phan 2: Dien Trach, Quan Loc, No Boc.
+   - Phan 3: Thien Di, Tat Ach, Tai Bach.
+   - Phan 4: Tu Tuc, Phu The, Huynh De, Bat Tu, cac truc lien ket va ket luan.
+3. Moi cung bat buoc co 6 muc va it nhat 3 bieu hien thuc te.
+4. Ket qua hien ngay duoi Tu Tru; nut Gemini chi dung de phan tich lai.
+5. Neu Gemini bao ban/429 hoac loi 5xx, website cho 6 giay va thu lai mot lan.
+6. Bao cao da hoan thanh duoc giu lai neu mot phan sau gap loi.

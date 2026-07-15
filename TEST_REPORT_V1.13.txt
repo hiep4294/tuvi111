@@ -1,0 +1,13 @@
+TU VI BAT TU WEB V1.13 - TEST REPORT
+
+[PASS] app.js JavaScript syntax.
+[PASS] Python prompt engine syntax.
+[PASS] Tao la so mau co du 12 cung.
+[PASS] Tao du 4 prompt bao cao tu dong.
+[PASS] Prompt phan 1 co Tong quan + Menh/Phu Mau/Phuc Duc.
+[PASS] Prompt phan 2 co Dien Trach/Quan Loc/No Boc.
+[PASS] Prompt phan 3 co Thien Di/Tat Ach/Tai Bach.
+[PASS] Prompt phan 4 co Tu Tuc/Phu The/Huynh De + Bat Tu + ket luan.
+[PASS] Luong generate() tu dong goi runGeminiAnalysis({ automatic: true }).
+[PASS] Service Worker va Web Worker da tang cache version 1.13.
+[PASS] Goi upload la file phang, khong co thu muc con.

@@ -200,3 +200,8 @@ footer { max-width:1600px; margin:12px auto 28px; padding:0 22px; color:#76695f;
 @media (max-width:680px) { .inline-gemini-actions { align-items:stretch; flex-direction:column; } }
 
 /* v1.9: tach bo chon gio 24h va tieu han */
+
+.ai-report-part { margin:0 0 24px; padding:0 0 20px; border-bottom:2px solid #eadfce; }
+.ai-report-part:last-child { border-bottom:0; }
+.ai-report-part > h2 { margin:0 0 14px; padding:10px 12px; border-left:5px solid var(--accent); background:#f7efe3; font-size:20px; }
+.inline-gemini-result .gemini-output { max-height:none; overflow:visible; }

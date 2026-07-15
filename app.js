@@ -22,7 +22,7 @@ const GEMINI_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
 const GEMINI_MODEL_KEY = "tuvi-gemini-model";
 const DEFAULT_GEMINI_ENDPOINT = "https://spring-bonus-6dfb.hiep4294.workers.dev";
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
-const WEB_VERSION = "1.12";
+const WEB_VERSION = "1.13";
 
 // Khung địa chi cố định theo thứ tự người dùng chốt.
 // Các cung chức năng và sao chỉ được gán vào khung này, không làm thay đổi vị trí địa chi.
@@ -168,26 +168,69 @@ async function testGeminiConnection(options = {}) {
   }
 }
 
-async function runGeminiAnalysis() {
-  if (state.geminiBusy) return;
-  if (!state.chart) return alert("Chưa lập lá số.");
+const AUTO_GEMINI_REPORT_PARTS = Object.freeze([
+  "Tổng quan, Mệnh, Phụ Mẫu, Phúc Đức",
+  "Điền Trạch, Quan Lộc, Nô Bộc",
+  "Thiên Di, Tật Ách, Tài Bạch",
+  "Tử Tức, Phu Thê, Huynh Đệ, Bát Tự và kết luận",
+]);
 
-  // Luôn dựng prompt toàn bộ từ dữ liệu lá số hiện tại. Không dùng prompt rút gọn
-  // hoặc nội dung cũ còn lưu trong textarea.
-  let prompt;
-  try {
-    const full = await callWorker("prompt", { kind: "full", index: 0 });
-    prompt = String(full.prompt || "").trim();
-  } catch (error) {
-    return alert("Không tạo được prompt toàn bộ:\n" + error.message);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function requestGeminiPart(endpoint, prompt, model, partIndex) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(geminiAnalyzeUrl(endpoint), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          model,
+          max_output_tokens: 8192,
+          metadata: {
+            chart_id: state.chart?.chart_id || null,
+            prompt_kind: "auto_report_part",
+            report_part: partIndex + 1,
+            report_parts_total: AUTO_GEMINI_REPORT_PARTS.length,
+            contains_full_tuvi: true,
+            contains_full_bazi: true,
+            requested_long_form: true,
+          },
+        }),
+      });
+      const data = await readJsonResponse(response);
+      if (!response.ok) {
+        const error = new Error(data.error || data.message || `HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      if (!data.text) throw new Error("Gemini không trả về nội dung văn bản.");
+      return data;
+    } catch (error) {
+      lastError = error;
+      const retryable = [429, 500, 502, 503, 504].includes(Number(error.status || 0));
+      if (!retryable || attempt === 1) break;
+      setGeminiStatus(`Gemini bận, chờ thử lại phần ${partIndex + 1}/4...`, "busy");
+      await wait(6000);
+    }
   }
-  if (!prompt) return alert("Prompt toàn bộ đang trống.");
+  throw lastError || new Error("Không gọi được Gemini.");
+}
 
-  $("promptKind").value = "full";
-  $("promptText").value = prompt;
+async function runGeminiAnalysis(options = {}) {
+  if (state.geminiBusy) return;
+  if (!state.chart) {
+    if (!options.automatic) alert("Chưa lập lá số.");
+    return;
+  }
 
   const endpoint = normalizeEndpoint($("geminiEndpoint").value || localStorage.getItem(GEMINI_ENDPOINT_KEY));
-  if (!endpoint) return alert("Chưa cấu hình địa chỉ Gemini Worker.");
+  if (!endpoint) {
+    $("geminiOutput").innerHTML = '<div class="ai-error"><b>Chưa cấu hình Gemini Worker.</b><br>Vào tab Prompt AI để nhập địa chỉ Worker.</div>';
+    setGeminiStatus("Chưa cấu hình", "error");
+    return;
+  }
   const model = DEFAULT_GEMINI_MODEL;
   $("geminiModel").value = model;
   localStorage.setItem(GEMINI_ENDPOINT_KEY, endpoint);
@@ -198,46 +241,62 @@ async function runGeminiAnalysis() {
   for (const button of buttons) {
     button.disabled = true;
     button.dataset.label = button.textContent;
-    button.textContent = "Gemini 3.5 đang phân tích...";
+    button.textContent = "Gemini đang tổng luận...";
   }
-  setGeminiStatus("Đang phân tích toàn bộ", "busy");
-  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang gửi toàn bộ Tử Vi + Bát Tự tới Gemini 3.5...</p></div>';
+  setGeminiStatus("Đang chuẩn bị báo cáo dài 4 phần", "busy");
+  $("geminiOutput").dataset.raw = "";
+  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang chuẩn bị báo cáo tổng luận dài. Dự kiến 4 lượt phân tích...</p></div>';
   activateTab("chart");
   setTimeout(() => $("geminiResultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
-  try {
-    const response = await fetch(geminiAnalyzeUrl(endpoint), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        model,
-        metadata: {
-          chart_id: state.chart?.chart_id || null,
-          prompt_kind: "full",
-          contains_full_tuvi: true,
-          contains_full_bazi: true,
-        },
-      }),
-    });
-    const data = await readJsonResponse(response);
-    if (!response.ok) throw new Error(data.error || data.message || `HTTP ${response.status}`);
-    if (!data.text) throw new Error("Gemini không trả về nội dung văn bản.");
+  const rawParts = [];
+  const htmlParts = [];
+  let usageTokens = 0;
 
-    $("geminiOutput").dataset.raw = data.text;
-    $("geminiOutput").innerHTML = `<div class="ai-meta">Prompt: Toàn bộ Tử Vi + Bát Tự · Mô hình: ${html(data.model || model)}${data.usage?.total_token_count ? ` · Tổng token: ${html(data.usage.total_token_count)}` : ""}</div>${renderMarkdownSafe(data.text)}`;
-    setGeminiStatus("Đã hoàn thành · Gemini 3.5", "ready");
-    setTimeout(() => $("geminiResultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    toast("Gemini 3.5 đã phân tích toàn bộ lá số");
+  try {
+    // Keep the editable full prompt available in the Prompt AI tab.
+    try {
+      const full = await callWorker("prompt", { kind: "full", index: 0 });
+      $("promptKind").value = "full";
+      $("promptText").value = String(full.prompt || "").trim();
+    } catch (_) {}
+
+    for (let index = 0; index < AUTO_GEMINI_REPORT_PARTS.length; index += 1) {
+      const title = AUTO_GEMINI_REPORT_PARTS[index];
+      setGeminiStatus(`Đang phân tích phần ${index + 1}/4`, "busy");
+      $("geminiOutput").innerHTML = [
+        ...htmlParts,
+        `<div class="ai-loading"><span></span><p>Phần ${index + 1}/4: ${html(title)}...</p></div>`,
+      ].join("");
+
+      const promptResult = await callWorker("prompt", { kind: "auto_report_part", index });
+      const prompt = String(promptResult.prompt || "").trim();
+      if (!prompt) throw new Error(`Prompt phần ${index + 1} đang trống.`);
+
+      const data = await requestGeminiPart(endpoint, prompt, model, index);
+      const sectionHeading = `PHẦN ${index + 1}/4 — ${title.toUpperCase()}`;
+      rawParts.push(`# ${sectionHeading}\n\n${data.text}`);
+      htmlParts.push(`<section class="ai-report-part"><h2>${html(sectionHeading)}</h2>${renderMarkdownSafe(data.text)}</section>`);
+      usageTokens += Number(data.usage?.total_token_count || data.usage?.totalTokenCount || 0);
+      $("geminiOutput").dataset.raw = rawParts.join("\n\n---\n\n");
+      $("geminiOutput").innerHTML = htmlParts.join("");
+
+      if (index < AUTO_GEMINI_REPORT_PARTS.length - 1) await wait(900);
+    }
+
+    $("geminiOutput").innerHTML = `<div class="ai-meta">Báo cáo tự động 4 phần · Mô hình: ${html(model)}${usageTokens ? ` · Tổng token ghi nhận: ${html(usageTokens)}` : ""}</div>${htmlParts.join("")}`;
+    setGeminiStatus("Đã hoàn thành báo cáo dài", "ready");
+    toast("Đã lập lá số và hoàn thành tổng luận AI");
   } catch (error) {
-    $("geminiOutput").dataset.raw = "";
-    $("geminiOutput").innerHTML = `<div class="ai-error"><b>Không thể phân tích.</b><br>${html(error.message)}</div>`;
-    setGeminiStatus("Phân tích lỗi", "error");
+    const completed = htmlParts.length;
+    $("geminiOutput").dataset.raw = rawParts.join("\n\n---\n\n");
+    $("geminiOutput").innerHTML = `${htmlParts.join("")}<div class="ai-error"><b>Báo cáo dừng tại phần ${completed + 1}/4.</b><br>${html(error.message)}<br>Có thể bấm “Phân tích lại toàn bộ” để chạy lại.</div>`;
+    setGeminiStatus(`Phân tích lỗi sau ${completed}/4 phần`, "error");
   } finally {
     state.geminiBusy = false;
     for (const button of buttons) {
       button.disabled = false;
-      button.textContent = button.dataset.label || "Phân tích toàn bộ Tử Vi + Bát Tự";
+      button.textContent = button.dataset.label || "Phân tích lại toàn bộ";
     }
   }
 }
@@ -266,7 +325,7 @@ function setEngineState(mode, message) {
 }
 
 function initWorker() {
-  const worker = new Worker("engine-worker.js?v=1.12");
+  const worker = new Worker("engine-worker.js?v=1.13");
   state.worker = worker;
   worker.onmessage = (event) => {
     const msg = event.data || {};
@@ -398,12 +457,13 @@ async function generate(event) {
     state.combinedAll = false;
     renderAll();
     localStorage.setItem("tuvi-web-last-input", JSON.stringify(parseForm()));
-    toast("Đã lập lá số");
+    toast("Đã lập lá số. Gemini đang tự động tổng luận...");
+    await runGeminiAnalysis({ automatic: true });
   } catch (error) {
     alert("Không thể lập lá số:\n" + error.message);
   } finally {
     button.disabled = false;
-    button.textContent = "Lập lá số";
+    button.textContent = "Lập lá số & tổng luận AI";
   }
 }
 
@@ -719,5 +779,5 @@ window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   initWorker();
   setTimeout(() => testGeminiConnection({ silent: true }), 650);
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.12").catch(()=>{});
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.13").catch(()=>{});
 });
