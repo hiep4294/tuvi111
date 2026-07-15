@@ -1,7 +1,9 @@
-WEB v1.11.1 - FILE PHẲNG
+WEB V1.12 DẠNG PHẲNG
 
-1. Giải nén gói ZIP ngoài máy tính.
-2. Chọn toàn bộ file bên trong và upload trực tiếp vào thư mục gốc repository GitHub.
-3. Giữ nguyên engine.zip, không giải nén.
-4. Ghi đè file cũ.
-5. Sau khi deploy, mở ?v=1111 và xóa cache Service Worker nếu còn giao diện cũ.
+1. Giải nén TuViBatTuWeb_v1.12_Flat_Upload.zip.
+2. Chọn toàn bộ file bên trong.
+3. Upload trực tiếp vào root repository GitHub.
+4. Giữ nguyên engine.zip, không giải nén.
+5. Commit: Fix annual stars reference profile v1.12
+6. Mở: https://hiep4294.github.io/tuvi/?v=112
+7. Nếu còn bản cũ: xóa Service Worker, Clear site data, Ctrl+Shift+R.

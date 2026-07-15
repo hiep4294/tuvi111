@@ -1,0 +1,32 @@
+RÀ SOÁT SAO LƯU NIÊN WEB V1.12
+
+Lỗi v1.11.1:
+- Đã an 22 sao lưu niên: đủ 12 vòng Thái Tuế + Lộc/Kình/Đà + Mã/Khốc/Hư + Lưu Tứ Hóa.
+- Hai lá số tham chiếu chỉ hiển thị 9 sao có tiền tố L.; vì vậy dữ liệu thừa bị hiểu là an sai.
+
+Bộ v1.12 khóa 9 sao:
+1. L.Thái tuế = địa chi năm xem.
+2. L.Tang môn = địa chi năm xem + 2 cung thuận.
+3. L.Bạch hổ = địa chi năm xem + 8 cung thuận.
+4. L.Lộc tồn = vị trí Lộc Tồn theo thiên can năm xem.
+5. L.Kình dương = sau Lộc Tồn 1 cung.
+6. L.Đà la = trước Lộc Tồn 1 cung.
+7. L.Thiên mã = theo tam hợp địa chi năm xem.
+8. L.Thiên khốc = khởi Ngọ, đi nghịch theo địa chi năm xem.
+9. L.Thiên hư = khởi Ngọ, đi thuận theo địa chi năm xem.
+
+Không an trong profile này:
+- Thiếu Dương, Thiếu Âm, Quan Phù, Tử Phù, Tuế Phá, Long Đức, Phúc Đức,
+  Điếu Khách, Trực Phù dạng L.
+- Lưu Hóa Lộc, Lưu Hóa Quyền, Lưu Hóa Khoa, Lưu Hóa Kỵ.
+
+Đối chiếu năm 2025 Ất Tỵ:
+- Tỵ: L.Thái tuế
+- Mùi: L.Tang môn
+- Sửu: L.Bạch hổ + L.Thiên khốc
+- Mão: L.Lộc tồn
+- Thìn: L.Kình dương
+- Dần: L.Đà la
+- Hợi: L.Thiên mã + L.Thiên hư
+
+Kết quả này độc lập với ngày sinh, giới tính, cung Mệnh, Tiểu hạn và bố cục giao diện.

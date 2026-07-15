@@ -22,7 +22,7 @@ const GEMINI_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
 const GEMINI_MODEL_KEY = "tuvi-gemini-model";
 const DEFAULT_GEMINI_ENDPOINT = "https://spring-bonus-6dfb.hiep4294.workers.dev";
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
-const WEB_VERSION = "1.11.1";
+const WEB_VERSION = "1.12";
 
 // Khung địa chi cố định theo thứ tự người dùng chốt.
 // Các cung chức năng và sao chỉ được gán vào khung này, không làm thay đổi vị trí địa chi.
@@ -266,7 +266,7 @@ function setEngineState(mode, message) {
 }
 
 function initWorker() {
-  const worker = new Worker("engine-worker.js?v=1.11.1");
+  const worker = new Worker("engine-worker.js?v=1.12");
   state.worker = worker;
   worker.onmessage = (event) => {
     const msg = event.data || {};
@@ -719,5 +719,5 @@ window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   initWorker();
   setTimeout(() => testGeminiConnection({ silent: true }), 650);
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.11.1").catch(()=>{});
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.12").catch(()=>{});
 });

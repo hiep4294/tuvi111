@@ -1,4 +1,4 @@
-const CACHE = "tuvi-battu-web-v1.11.1";
+const CACHE = "tuvi-battu-web-v1.12";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
