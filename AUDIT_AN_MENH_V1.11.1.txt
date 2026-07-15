@@ -1,0 +1,37 @@
+RÀ SOÁT AN MỆNH VÀ KHUNG ĐỊA CHI - WEB v1.11.1
+
+1. Khung địa chi cố định trên màn hình
+
+  Tỵ    Ngọ    Mùi    Thân
+  Thìn                Dậu
+  Mão                 Tuất
+  Dần   Sửu   Tý      Hợi
+
+Đi theo chiều kim đồng hồ từ Dần:
+Dần -> Mão -> Thìn -> Tỵ -> Ngọ -> Mùi -> Thân -> Dậu -> Tuất -> Hợi -> Tý -> Sửu.
+
+2. Nguyên tắc an cung
+- Địa chi trên khung không xoay theo giờ sinh.
+- Tính cung Mệnh bằng tháng âm và giờ địa chi.
+- Đặt Mệnh vào đúng địa chi vừa tính.
+- Từ Mệnh an tiếp: Phụ Mẫu, Phúc Đức, Điền Trạch, Quan Lộc, Nô Bộc,
+  Thiên Di, Tật Ách, Tài Bạch, Tử Tức, Phu Thê, Huynh Đệ.
+- Tiểu hạn là lớp hạn riêng; không dùng để tính Mệnh và không dùng để xếp tên cung.
+
+3. Ca kiểm thử bắt buộc
+Nữ, 10:55 ngày 11/07/1995 dương lịch:
+- Âm lịch: 14/06/1995.
+- Giờ địa chi: Tỵ.
+- Cung Mệnh: Dần.
+- Cung Thân: Tý.
+- Thân cư Phu Thê.
+- Phân bố cung chức:
+  Dần Mệnh; Mão Phụ Mẫu; Thìn Phúc Đức; Tỵ Điền Trạch;
+  Ngọ Quan Lộc; Mùi Nô Bộc; Thân Thiên Di; Dậu Tật Ách;
+  Tuất Tài Bạch; Hợi Tử Tức; Tý Phu Thê; Sửu Huynh Đệ.
+
+4. Phạm vi sửa
+- Sửa vị trí hiển thị 12 địa chi trên lưới.
+- Không đổi công thức an Mệnh.
+- Không đổi vị trí sao theo địa chi.
+- Không dùng Tiểu hạn để sắp xếp cung.

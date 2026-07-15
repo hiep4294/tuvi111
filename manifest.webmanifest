@@ -1,0 +1,9 @@
+{
+  "name": "Tử Vi + Bát Tự",
+  "short_name": "Tử Vi Bát Tự",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eee7dc",
+  "theme_color": "#6b2f24",
+  "description": "Lập lá số Tử Vi và Bát Tự trực tiếp trên trình duyệt."
+}

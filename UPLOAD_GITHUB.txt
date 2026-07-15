@@ -1,0 +1,7 @@
+WEB v1.11.1 - FILE PHẲNG
+
+1. Giải nén gói ZIP ngoài máy tính.
+2. Chọn toàn bộ file bên trong và upload trực tiếp vào thư mục gốc repository GitHub.
+3. Giữ nguyên engine.zip, không giải nén.
+4. Ghi đè file cũ.
+5. Sau khi deploy, mở ?v=1111 và xóa cache Service Worker nếu còn giao diện cũ.
