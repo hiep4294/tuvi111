@@ -169,10 +169,8 @@ async function testGeminiConnection(options = {}) {
 }
 
 const AUTO_GEMINI_REPORT_PARTS = Object.freeze([
-  "Tổng quan, Mệnh, Phụ Mẫu, Phúc Đức",
-  "Điền Trạch, Quan Lộc, Nô Bộc",
-  "Thiên Di, Tật Ách, Tài Bạch",
-  "Tử Tức, Phu Thê, Huynh Đệ, Bát Tự và kết luận",
+  "Tổng quan và 6 cung đầu",
+  "6 cung còn lại, Bát Tự và kết luận",
 ]);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -187,7 +185,7 @@ async function requestGeminiPart(endpoint, prompt, model, partIndex) {
         body: JSON.stringify({
           prompt,
           model,
-          max_output_tokens: 8192,
+          max_output_tokens: 4096,
           metadata: {
             chart_id: state.chart?.chart_id || null,
             prompt_kind: "auto_report_part",
@@ -195,7 +193,7 @@ async function requestGeminiPart(endpoint, prompt, model, partIndex) {
             report_parts_total: AUTO_GEMINI_REPORT_PARTS.length,
             contains_full_tuvi: true,
             contains_full_bazi: true,
-            requested_long_form: true,
+            requested_compact_balanced_report: true,
           },
         }),
       });
@@ -243,9 +241,9 @@ async function runGeminiAnalysis(options = {}) {
     button.dataset.label = button.textContent;
     button.textContent = "Gemini đang tổng luận...";
   }
-  setGeminiStatus("Đang chuẩn bị báo cáo dài 4 phần", "busy");
+  setGeminiStatus("Đang chuẩn bị báo cáo gọn 2 phần", "busy");
   $("geminiOutput").dataset.raw = "";
-  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang chuẩn bị báo cáo tổng luận dài. Dự kiến 4 lượt phân tích...</p></div>';
+  $("geminiOutput").innerHTML = '<div class="ai-loading"><span></span><p>Đang chuẩn bị báo cáo ngắn gọn, dễ hiểu. Dự kiến 2 lượt phân tích...</p></div>';
   activateTab("chart");
   setTimeout(() => $("geminiResultPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
@@ -274,7 +272,7 @@ async function runGeminiAnalysis(options = {}) {
       if (!prompt) throw new Error(`Prompt phần ${index + 1} đang trống.`);
 
       const data = await requestGeminiPart(endpoint, prompt, model, index);
-      const sectionHeading = `PHẦN ${index + 1}/4 — ${title.toUpperCase()}`;
+      const sectionHeading = `PHẦN ${index + 1}/${AUTO_GEMINI_REPORT_PARTS.length} — ${title.toUpperCase()}`;
       rawParts.push(`# ${sectionHeading}\n\n${data.text}`);
       htmlParts.push(`<section class="ai-report-part"><h2>${html(sectionHeading)}</h2>${renderMarkdownSafe(data.text)}</section>`);
       usageTokens += Number(data.usage?.total_token_count || data.usage?.totalTokenCount || 0);
@@ -284,14 +282,14 @@ async function runGeminiAnalysis(options = {}) {
       if (index < AUTO_GEMINI_REPORT_PARTS.length - 1) await wait(900);
     }
 
-    $("geminiOutput").innerHTML = `<div class="ai-meta">Báo cáo tự động 4 phần · Mô hình: ${html(model)}${usageTokens ? ` · Tổng token ghi nhận: ${html(usageTokens)}` : ""}</div>${htmlParts.join("")}`;
-    setGeminiStatus("Đã hoàn thành báo cáo dài", "ready");
+    $("geminiOutput").innerHTML = `<div class="ai-meta">Báo cáo tự động 2 phần · Mô hình: ${html(model)}${usageTokens ? ` · Tổng token ghi nhận: ${html(usageTokens)}` : ""}</div>${htmlParts.join("")}`;
+    setGeminiStatus("Đã hoàn thành báo cáo gọn", "ready");
     toast("Đã lập lá số và hoàn thành tổng luận AI");
   } catch (error) {
     const completed = htmlParts.length;
     $("geminiOutput").dataset.raw = rawParts.join("\n\n---\n\n");
-    $("geminiOutput").innerHTML = `${htmlParts.join("")}<div class="ai-error"><b>Báo cáo dừng tại phần ${completed + 1}/4.</b><br>${html(error.message)}<br>Có thể bấm “Phân tích lại toàn bộ” để chạy lại.</div>`;
-    setGeminiStatus(`Phân tích lỗi sau ${completed}/4 phần`, "error");
+    $("geminiOutput").innerHTML = `${htmlParts.join("")}<div class="ai-error"><b>Báo cáo dừng tại phần ${completed + 1}/${AUTO_GEMINI_REPORT_PARTS.length}.</b><br>${html(error.message)}<br>Có thể bấm “Phân tích lại toàn bộ” để chạy lại.</div>`;
+    setGeminiStatus(`Phân tích lỗi sau ${completed}/${AUTO_GEMINI_REPORT_PARTS.length} phần`, "error");
   } finally {
     state.geminiBusy = false;
     for (const button of buttons) {

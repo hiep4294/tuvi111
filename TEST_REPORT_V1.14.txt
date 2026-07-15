@@ -1,0 +1,15 @@
+TEST REPORT WEB V1.14
+
+[PASS] Python prompt engine compile.
+[PASS] web_api compile.
+[PASS] app.js syntax.
+[PASS] engine-worker.js syntax.
+[PASS] service-worker.js syntax.
+[PASS] Tao du 12 cung cho mau 18/05/2023 17:18 Nu.
+[PASS] Tao du 2 prompt bao cao tu dong.
+[PASS] Prompt phan 1 co 6 cung dau.
+[PASS] Prompt phan 2 co 6 cung con lai va Bat Tu.
+[PASS] Khong con tieu de tieng Anh trong prompt dau ra.
+[PASS] Khong yeu cau muc Phan biet muc do tin cay.
+[PASS] Khong yeu cau muc Cach ung dung.
+[PASS] Gioi han output Gemini 4096 token moi phan.

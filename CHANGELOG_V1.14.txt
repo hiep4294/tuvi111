@@ -1,0 +1,11 @@
+WEB V1.14 - RUT GON NOI DUNG GEMINI
+
+- Bao cao tu dong doi tu 4 phan sang 2 phan.
+- Muc tieu tong do dai 1.800-2.600 tu, toi da 3.000 tu.
+- Moi cung chi gom 4 muc: Y chinh, Bieu hien co the gap, Mat thuan, Dieu can luu y.
+- Dung tieng Viet pho thong, cau ngan, han che thuat ngu chuyen mon.
+- Khong dung tu tieng Anh trong tieu de va noi dung giai thich.
+- Khong tao muc Phan biet muc do tin cay cua du lieu.
+- Khong tao muc Cach ung dung.
+- Khong dung bang ASCII hoac so do ky tu dai.
+- Van giu nguyen nguyen tac khong ket luan tuyet doi va khong ap dat mot kha nang duy nhat.

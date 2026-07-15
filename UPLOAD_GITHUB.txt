@@ -1,13 +1,15 @@
-HUONG DAN UPLOAD WEB V1.13
+HUONG DAN UPLOAD WEB V1.14
 
-1. Giai nen TuViBatTuWeb_v1.13_Flat_Upload.zip.
+1. Giai nen TuViBatTuWeb_v1.14_Flat_Upload.zip.
 2. Chon tat ca file ben trong va upload vao thu muc goc repository GitHub.
 3. Giu nguyen engine.zip, khong giai nen.
 4. Chap nhan ghi de file cu.
-5. Commit: Auto Gemini long report v1.13
-6. Mo: https://hiep4294.github.io/tuvi/?v=113
+5. Commit: Rut gon bao cao Gemini v1.14
+6. Mo: https://hiep4294.github.io/tuvi/?v=114
 7. Neu con cache cu: F12 > Application > Service Workers > Unregister > Storage > Clear site data > Ctrl+Shift+R.
 
-LUU Y
-- Sau khi bam Lap la so, du lieu Tu Vi + Bat Tu se tu dong gui qua Gemini Worker.
-- Bao cao gom 4 luot nen thoi gian xu ly va han muc Gemini se cao hon ban cu.
+THAY DOI
+- Tu dong tong luan 2 phan thay vi 4 phan.
+- Muc tieu 1.800-2.600 tu, khong vuot 3.000 tu.
+- Dung tieng Viet pho thong, han che thuat ngu.
+- Khong co muc phan biet do tin cay hoac cach ung dung.
