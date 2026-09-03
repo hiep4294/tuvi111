@@ -1,0 +1,9 @@
+{
+  "name": "tuvi111",
+  "version": "1.18.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "test:syntax": "node --check app.js && node --check autonomous.js && node --check offline-summary.js && node --check engine-worker.js && node --check service-worker.js"
+  }
+}

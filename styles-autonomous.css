@@ -1,0 +1,46 @@
+:root { --radius: 8px; }
+
+.inline-gemini-actions[hidden], .gemini-panel[hidden] { display: none !important; }
+html, body { max-width: 100%; overflow-x: hidden; }
+.tuvi-board { max-width: 100%; overscroll-behavior-inline: contain; }
+
+button, input, select, textarea { min-height: 44px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .palace:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+}
+.card, .tuvi-board, .tabs, .gemini-output, .inline-gemini-result { border-radius: 8px; }
+.primary-button { background: #7a3026; }
+.primary-button:hover:not(:disabled) { background: #5f241d; }
+.secondary-button:hover, .toolbar-actions button:hover, .selector-bar button:hover,
+.prompt-controls button:hover, .json-toolbar button:hover { background: #f1e4d2; }
+.engine-state { border-radius: 8px; }
+.privacy-note { padding-left: 10px; border-left: 3px solid #0f766e; }
+.offline-ready { color: #0f766e; font-weight: 800; }
+.offline-meta { background: #dff3ee; color: #115e59; }
+.offline-reading { display: grid; gap: 0; }
+.offline-section { padding: 11px 0; border-bottom: 1px solid #e2d5c4; }
+.offline-section h3, .offline-actions h3 { margin: 0 0 5px; color: #5f241d; font-size: 15px; }
+.offline-section p { margin: 0; }
+.offline-actions { margin-top: 12px; padding: 12px; border-left: 4px solid #0f766e; background: #eef8f5; }
+.offline-actions ol { margin: 6px 0 0 20px; padding: 0; }
+.offline-actions li { margin: 5px 0; }
+.offline-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 680px) {
+  .topbar { padding: 16px; gap: 14px; }
+  .topbar h1 { font-size: 30px; }
+  .topbar p { font-size: 13px; line-height: 1.45; }
+  .app-shell { margin: 10px auto; }
+  .input-panel { padding: 16px; }
+  .field-row { grid-template-columns: 1fr; }
+  .tabs { position: sticky; top: 0; z-index: 10; }
+  .selector-bar label, .prompt-controls label { min-width: 100%; }
+  .selector-bar button, .prompt-controls button { flex: 1 1 auto; }
+  .toolbar-actions { width: 100%; }
+  .toolbar-actions button { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

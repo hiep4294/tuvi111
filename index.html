@@ -4,16 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
-  <meta name="description" content="Lập lá số Tử Vi và Bát Tự trực tiếp trên trình duyệt, dựa trên bộ quy tắc desktop v1.3.">
-  <title>Tử Vi + Bát Tự — Web v1.15 tổng luận AI theo 15 bước</title>
+  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tổng luận cục bộ ngay trên thiết bị, không cần gửi dữ liệu ra ngoài.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Tử Vi + Bát Tự — Web v1.18 tổng luận offline</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=1.3.0">
+  <link rel="stylesheet" href="styles.css?v=1.18">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.18">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">BẢN WEB MIỄN PHÍ · LÁ SỐ XỬ LÝ TRÊN THIẾT BỊ · AI QUA PROXY</div>
+      <div class="eyebrow">BẢN WEB ĐỘC LẬP · DỮ LIỆU XỬ LÝ TRÊN THIẾT BỊ</div>
       <h1>Tử Vi + Bát Tự</h1>
       <p>Bộ an sao tham chiếu · Bát Tự theo tiết khí · Lưu niên 9 sao tham chiếu · prompt AI</p>
     </div>
@@ -73,14 +75,14 @@
           <span>Không hiệu chỉnh giờ mặt trời</span>
         </div>
 
-        <button class="primary-button" id="generateButton" type="submit" disabled>Lập lá số & tổng luận AI</button>
+        <button class="primary-button" id="generateButton" type="submit" disabled>Lập lá số</button>
         <button class="secondary-button" id="saveProfileButton" type="button">Lưu hồ sơ trên máy</button>
       </form>
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-track"><div id="progressBar"></div></div>
         <small id="progressText">Đang tải bộ máy lần đầu...</small>
       </div>
-      <p class="privacy-note">Việc an lá số chạy trên thiết bị. Sau khi lập xong, website tự động gửi dữ liệu Tử Vi + Bát Tự qua Worker bảo mật để Gemini tạo báo cáo theo thứ tự tổng quan, 12 cung, Bát Tự và kết luận.</p>
+      <p class="privacy-note">Lá số và tổng luận được tạo ngay trên thiết bị. Sau khi tải đủ bộ máy lần đầu, chức năng chính không cần Gemini, API hoặc kết nối mạng.</p>
     </aside>
 
     <section class="workspace">
@@ -88,7 +90,7 @@
         <button class="tab-button active" data-tab="chart">Tử Vi + Bát Tự</button>
         <button class="tab-button" data-tab="relations">Quan hệ cung</button>
         <button class="tab-button" data-tab="combined">Tổng hợp</button>
-        <button class="tab-button" data-tab="prompt">Prompt AI</button>
+        <button class="tab-button" data-tab="prompt">Prompt tùy chọn</button>
         <button class="tab-button" data-tab="json">JSON</button>
       </nav>
 
@@ -119,17 +121,17 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">AI TỔNG LUẬN TỰ ĐỘNG</span>
-                  <h2>Báo cáo Gemini 3.5</h2>
+                  <span class="section-kicker">KHÔNG MẠNG · KHÔNG GỬI DỮ LIỆU</span>
+                  <h2>Tổng luận cục bộ</h2>
                 </div>
-                <span class="tag">Tự chạy sau khi lập lá số</span>
+                <span class="tag">Quy tắc cố định v1.18</span>
               </div>
-              <div class="inline-gemini-actions">
+              <div class="inline-gemini-actions" hidden>
                 <button id="runGeminiInlineButton" class="primary-button" type="button">Phân tích lại toàn bộ — 15 bước</button>
                 <span class="muted">Báo cáo được chia 4 lượt để dài và ít bị cắt: đủ 12 cung, các trục liên kết, lưu niên và Bát Tự.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Sau khi lập lá số, Gemini tự phân tích theo 15 bước: tổng quan, từng cung của 12 cung, Bát Tự và kết luận. Mỗi cung chỉ có 4 mục ngắn gọn.</p>
+                <p class="muted">Tổng luận cục bộ sẽ xuất hiện ngay sau khi lập lá số.</p>
               </div>
             </section>
 
@@ -183,7 +185,7 @@
 
         <textarea id="promptText" class="prompt-text" placeholder="Prompt sẽ xuất hiện tại đây. Có thể chỉnh trực tiếp trước khi gửi Gemini."></textarea>
 
-        <section class="card gemini-panel">
+        <section class="card gemini-panel" hidden>
           <div class="gemini-heading">
             <div>
               <span class="section-kicker">AI LUẬN GIẢI</span>
@@ -194,7 +196,7 @@
 
           <div class="gemini-settings">
             <label>Địa chỉ Gemini Worker
-              <input id="geminiEndpoint" type="url" inputmode="url" value="https://spring-bonus-6dfb.hiep4294.workers.dev" placeholder="https://spring-bonus-6dfb.hiep4294.workers.dev">
+              <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://worker-cua-ban.example">
             </label>
             <label>Mô hình
               <select id="geminiModel" disabled aria-label="Mô hình Gemini cố định">
@@ -230,10 +232,12 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.15 · Tổng luận Gemini theo 15 bước · Khung địa chi cố định · Lưu niên 9 sao theo lá số tham chiếu.</p>
+    <p>Web v1.18 · Lá số và tổng luận cục bộ · Khung địa chi cố định · Lưu niên 9 sao theo lá số tham chiếu.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=1.13" defer></script>
+  <script src="app.js?v=1.18" defer></script>
+  <script src="autonomous.js?v=1.18" defer></script>
+  <script src="offline-summary.js?v=1.18" defer></script>
 </body>
 </html>

@@ -20,9 +20,9 @@ const normalizeName = (s) => String(s || "").toLocaleLowerCase("vi");
 
 const GEMINI_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
 const GEMINI_MODEL_KEY = "tuvi-gemini-model";
-const DEFAULT_GEMINI_ENDPOINT = "https://spring-bonus-6dfb.hiep4294.workers.dev";
+const DEFAULT_GEMINI_ENDPOINT = "";
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
-const WEB_VERSION = "1.15";
+const WEB_VERSION = "1.18";
 
 // Khung địa chi cố định theo thứ tự người dùng chốt.
 // Các cung chức năng và sao chỉ được gán vào khung này, không làm thay đổi vị trí địa chi.
@@ -343,8 +343,13 @@ function setEngineState(mode, message) {
   $("engineMessage").textContent = message;
 }
 
+function rejectPendingRequests(error) {
+  for (const pending of state.pending.values()) pending.reject(error);
+  state.pending.clear();
+}
+
 function initWorker() {
-  const worker = new Worker("engine-worker.js?v=1.15");
+  const worker = new Worker("engine-worker.js?v=1.18");
   state.worker = worker;
   worker.onmessage = (event) => {
     const msg = event.data || {};
@@ -360,6 +365,7 @@ function initWorker() {
     } else if (msg.type === "fatal") {
       setEngineState("error", "Không tải được bộ máy");
       setProgress("Lỗi: " + msg.error + " — hãy nhấn Ctrl+F5 hoặc xóa dữ liệu trang rồi tải lại.", 100);
+      rejectPendingRequests(new Error(msg.error || "Bộ máy khởi động thất bại"));
     } else if (msg.type === "response") {
       const pending = state.pending.get(msg.id);
       if (!pending) return;
@@ -370,6 +376,7 @@ function initWorker() {
   worker.onerror = (event) => {
     setEngineState("error", "Worker gặp lỗi");
     setProgress(event.message, 100);
+    rejectPendingRequests(new Error(event.message || "Worker gặp lỗi"));
   };
 }
 
@@ -377,7 +384,17 @@ function callWorker(action, payload = {}) {
   return new Promise((resolve, reject) => {
     if (!state.workerReady && action !== "health") return reject(new Error("Bộ máy chưa sẵn sàng"));
     const id = state.nextId++;
-    state.pending.set(id, { resolve, reject });
+    const timeoutMs = action === "generate" ? 120000 : 30000;
+    const timer = setTimeout(() => {
+      if (!state.pending.delete(id)) return;
+      reject(new Error(action === "generate"
+        ? "Bộ máy tính quá 120 giây. Hãy tải lại trang và thử lại."
+        : "Bộ máy không phản hồi sau 30 giây."));
+    }, timeoutMs);
+    state.pending.set(id, {
+      resolve(value) { clearTimeout(timer); resolve(value); },
+      reject(error) { clearTimeout(timer); reject(error); },
+    });
     state.worker.postMessage({ id, action, payload });
   });
 }
@@ -469,20 +486,20 @@ async function generate(event) {
     state.chart = result.chart;
     validateFixedBranchFrame(state.chart);
     $("geminiOutput").dataset.raw = "";
-    $("geminiOutput").innerHTML = '<p class="muted">Chưa có luận giải Gemini cho lá số hiện tại.</p>';
+    $("geminiOutput").innerHTML = '<p class="muted">Đang tạo tổng luận cục bộ...</p>';
     state.selectedBranch = Number(state.chart.heaven.menh_branch || 1);
     state.selectedTopic = 0;
     state.relationAll = false;
     state.combinedAll = false;
     renderAll();
+    renderOfflineSummary(state.chart);
     localStorage.setItem("tuvi-web-last-input", JSON.stringify(parseForm()));
-    toast("Đã lập lá số. Gemini đang tự động tổng luận...");
-    await runGeminiAnalysis({ automatic: true });
+    toast("Đã lập lá số trên thiết bị");
   } catch (error) {
     alert("Không thể lập lá số:\n" + error.message);
   } finally {
     button.disabled = false;
-    button.textContent = "Lập lá số & tổng luận AI";
+    button.textContent = "Lập lá số";
   }
 }
 
@@ -797,6 +814,6 @@ window.addEventListener("DOMContentLoaded", () => {
   restoreGeminiSettings();
   bindEvents();
   initWorker();
-  setTimeout(() => testGeminiConnection({ silent: true }), 650);
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.13").catch(()=>{});
+  // AI là tùy chọn; chỉ kiểm tra kết nối khi người dùng chủ động yêu cầu.
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.18").catch(()=>{});
 });

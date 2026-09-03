@@ -1,0 +1,12 @@
+TỬ VI + BÁT TỰ WEB V1.18 — OFFLINE
+
+- Tự lưu trữ Pyodide 0.27.7; không còn phụ thuộc CDN để lập lá số.
+- Thêm tổng luận cục bộ theo quy tắc cố định, không tự gửi dữ liệu tới Gemini/API.
+- Bỏ gọi Worker AI tự động và chặn kết nối HTTPS ngoài bằng CSP.
+- Cache đầy đủ bộ máy, mã nguồn và runtime để tải lại khi mất mạng.
+- Thêm kiểm tra ngày hợp lệ, timeout worker và giải phóng yêu cầu đang chờ khi worker lỗi.
+- Sửa nút Gemini còn hiện do CSS ghi đè thuộc tính hidden.
+- Sửa tràn ngang toàn trang ở màn hình 360 px; bàn lá số vẫn cuộn ngang riêng.
+- Thêm 4 nhóm kiểm thử tự động và giấy phép Pyodide.
+
+Thuật toán an sao trong engine.zip không thay đổi.

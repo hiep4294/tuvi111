@@ -1,0 +1,23 @@
+BÁO CÁO KIỂM THỬ V1.18
+
+Nguồn nâng cấp:
+- tuvi-v1.18-offline.zip
+- SHA-256: 4F020EC1461E125B70A1F64DC85B5A07BB5E0477910B8E94BAA70130AD019C92
+
+Kết quả tự động:
+- npm test: 4/4 đạt.
+- npm run test:syntax: đạt.
+- git diff --check: đạt.
+
+Kết quả trình duyệt thật:
+- Pyodide tự lưu trữ khởi động thành công; không có lỗi console.
+- Lập lá số 18/05/2023 17:18 và tạo tổng luận cục bộ thành công.
+- Tắt hẳn máy chủ, tải lại trang và lập lại: thành công.
+- JSON online/offline giống hệt nhau: 993.428 ký tự.
+- Tổng luận online/offline giống hệt nhau: 2.859 ký tự.
+- Màn hình 360 px: form một cột, nút không tràn, bàn lá số cuộn ngang riêng.
+- Điều khiển Gemini ẩn hoàn toàn trong chế độ tổng luận cục bộ.
+
+Giới hạn:
+- Tổng luận là quy tắc tham khảo, không thay thế tư vấn y tế, pháp lý hoặc tài chính.
+- Lần truy cập đầu vẫn cần tải toàn bộ website; các lần sau mới hoạt động offline.
