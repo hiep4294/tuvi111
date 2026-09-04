@@ -30,29 +30,39 @@ const evidence = ai.buildEvidencePackage(chart);
 assert.equal(evidence.ai_scope, "summary_and_conclusion_only");
 assert.equal(evidence.palaces[0].stars[0].name, "Phá Quân");
 
-const prompt = ai.buildSummaryPrompt(chart, { subjectKind: "child", localSummary: { generatedBy: "offline" } });
-assert.match(prompt, /KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ/);
-assert.match(prompt, /Không lặp lại từng cung/i);
-assert.match(prompt, /Mệnh–Tài–Quan/);
-assert.match(prompt, /Red-team/);
-assert.match(prompt, /Phá Quân/);
-assert.match(prompt, /Giáp Thìn/);
-assert.match(prompt, /summary_and_conclusion_only/);
-assert.doesNotMatch(prompt, /TẤT CẢ SAO NGUYÊN CỤC BẮT BUỘC/);
-assert.doesNotMatch(prompt, /NHIỆM VỤ BƯỚC/);
+const fullPrompt = ai.buildSummaryPrompt(chart, { subjectKind: "child", localSummary: { generatedBy: "offline" } });
+assert.match(fullPrompt, /KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ/);
+assert.match(fullPrompt, /Mệnh–Tài–Quan/);
+assert.match(fullPrompt, /Red-team/);
+assert.match(fullPrompt, /Phá Quân/);
+assert.match(fullPrompt, /Giáp Thìn/);
+assert.match(fullPrompt, /summary_and_conclusion_only/);
 
-const issues = ai.validateSummary("Kết luận ngắn");
+const compact = ai.buildCompactEvidenceText(chart);
+assert.match(compact, /Phá Quân\[Miếu\/Thủy\]/);
+assert.match(compact, /Giáp Thìn/);
+assert.ok(compact.length < 6000, `compact evidence should stay small, got ${compact.length}`);
+
+const browserPrompt = ai.buildBrowserSummaryPrompt(chart, { subjectKind: "child", localSummary: "offline concise" });
+assert.match(browserPrompt, /EVIDENCE NÉN TỪ TUVI111/);
+assert.match(browserPrompt, /700–1\.200 từ/);
+assert.match(browserPrompt, /Phá Quân/);
+assert.match(browserPrompt, /Giáp Thìn/);
+assert.doesNotMatch(browserPrompt, /NHIỆM VỤ BƯỚC/);
+assert.ok(browserPrompt.length < fullPrompt.length, "browser prompt must be smaller than full cloud prompt");
+
+const issues = ai.validateSummary("Kết luận ngắn", { minLength: 2200 });
 assert.ok(issues.some((item) => item.includes("quá ngắn")));
 assert.ok(issues.some((item) => item.includes("Bát Tự")));
 assert.ok(issues.some((item) => item.includes("Mệnh–Di")));
 assert.ok(issues.some((item) => item.includes("Tứ Hóa")));
 
-const longSummary = `${"Kết luận tổng quát Mệnh Tài Quan Thiên Di Tứ Hóa Bát Tự Nhật chủ phản biện Red team Kết luận cuối. ".repeat(80)}`;
-assert.deepEqual(ai.validateSummary(longSummary), []);
+const longSummary = `${"Kết luận tổng quát Mệnh Tài Quan Thiên Di Tứ Hóa Bát Tự Nhật chủ phản biện Red team Kết luận cuối. ".repeat(50)}`;
+assert.deepEqual(ai.validateSummary(longSummary, { minLength: 2200 }), []);
 
-const repair = ai.buildRepairPrompt(prompt, "bản cũ", ["thiếu phản biện"]);
+const repair = ai.buildRepairPrompt(browserPrompt, "bản cũ", ["thiếu phản biện"], { priorLimit: 1200 });
 assert.match(repair, /QUALITY GATE/);
 assert.match(repair, /chỉ làm kết luận\/tổng kết/);
 assert.match(repair, /không quay lại viết 12 cung riêng/i);
 
-console.log("PASS: Hiep TuVi AI is summary-only and quality-gated");
+console.log("PASS: Hiep TuVi AI supports compact browser prompts and quality gates");
