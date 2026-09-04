@@ -137,6 +137,16 @@
     }
   }
 
+  function renderAiError(error) {
+    const output = document.getElementById("geminiOutput");
+    if (!output) return;
+    output.innerHTML = "";
+    const node = document.createElement("div");
+    node.className = "ai-error";
+    node.textContent = `Không tạo được kết luận AI: ${String(error?.message || error)}`;
+    output.appendChild(node);
+  }
+
   window.restoreGeminiSettings = function restoreOptionalAiSettings() {
     const endpoint = String(localStorage.getItem("tuvi-gemini-worker-endpoint") || "").trim();
     const endpointNode = document.getElementById("geminiEndpoint");
@@ -223,7 +233,7 @@
       }
       window.toast?.("Đã hoàn thành kết luận AI");
     } catch (error) {
-      if (output) output.innerHTML = `<div class="ai-error">Không tạo được kết luận AI: ${String(error.message || error)}</div>`;
+      renderAiError(error);
       if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("AI tổng kết lỗi", "error");
     } finally {
       setAiBusy(false);
