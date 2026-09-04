@@ -43,11 +43,17 @@
   }
 
   function loadBrowserAI() {
-    return loadScript("HiepBrowserAI", "browser-ai.js?v=1.1.0", browserAiLoadPromise, (value) => { browserAiLoadPromise = value; });
+    return loadScript("HiepBrowserAI", "browser-ai.js?v=1.1.1", browserAiLoadPromise, (value) => { browserAiLoadPromise = value; });
   }
 
   function normalizeEndpoint(value) {
     return String(value || "").trim().replace(/\/+$/, "");
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[char]);
   }
 
   async function configureAiProxy() {
@@ -110,7 +116,7 @@
     }
     const output = document.getElementById("geminiOutput");
     if (output) {
-      output.innerHTML = `<div class="ai-loading"><span></span><p>${typeof window.html === "function" ? window.html(text) : text}${pct === null ? "" : ` ${pct}%`}</p></div>`;
+      output.innerHTML = `<div class="ai-loading"><span></span><p>${escapeHtml(text)}${pct === null ? "" : ` ${pct}%`}</p></div>`;
     }
   }
 
@@ -149,6 +155,36 @@
     });
   }
 
+  function localModelCandidates(browserAi, preferredId) {
+    const models = Array.isArray(browserAi?.MODELS) ? [...browserAi.MODELS] : [];
+    const preferred = browserAi.modelRecord?.(preferredId) || models[0];
+    const lighter = models
+      .filter((model) => model.id !== preferred?.id && Number(model.vramMB || Infinity) < Number(preferred?.vramMB || Infinity))
+      .sort((a, b) => Number(b.vramMB || 0) - Number(a.vramMB || 0));
+    return [preferred, ...lighter].filter(Boolean);
+  }
+
+  async function requestLocalWithFallback(prompt, browserAi, preferredId, options = {}) {
+    const candidates = localModelCandidates(browserAi, preferredId);
+    let lastError = null;
+    for (let index = 0; index < candidates.length; index += 1) {
+      const model = candidates[index];
+      try {
+        if (index > 0 && typeof window.setGeminiStatus === "function") {
+          window.setGeminiStatus(`Model trước không chạy được · thử ${model.label}`, "busy");
+        }
+        const data = await requestLocalSummary(prompt, model.id, options);
+        localStorage.setItem(LOCAL_MODEL_KEY, model.id);
+        const modelNode = document.getElementById("geminiModel");
+        if (modelNode) modelNode.value = model.id;
+        return data;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("Không có model local phù hợp với GPU hiện tại.");
+  }
+
   function renderFinalSummary(data, quality) {
     const output = document.getElementById("geminiOutput");
     if (!output) return;
@@ -159,7 +195,7 @@
     const meta = `${local ? "AI chạy cục bộ trên WebGPU" : "AI fallback cloud"}${model ? ` · ${model}` : ""}${repaired}${usage ? ` · ${usage} token` : ""}`;
     output.dataset.raw = String(data.text || "");
     if (typeof window.renderMarkdownSafe === "function") {
-      output.innerHTML = `<div class="ai-meta">${meta}</div><section class="ai-report-part">${window.renderMarkdownSafe(data.text)}</section>`;
+      output.innerHTML = `<div class="ai-meta">${escapeHtml(meta)}</div><section class="ai-report-part">${window.renderMarkdownSafe(data.text)}</section>`;
     } else {
       output.innerHTML = "";
       const metaNode = document.createElement("div");
@@ -257,7 +293,7 @@
       if (!browserAi) throw new Error("Lớp Browser AI chưa sẵn sàng.");
       configureLocalAiUi(browserAi);
 
-      const selectedModel = document.getElementById("geminiModel")?.value || localStorage.getItem(LOCAL_MODEL_KEY) || browserAi.DEFAULT_MODEL;
+      let selectedModel = document.getElementById("geminiModel")?.value || localStorage.getItem(LOCAL_MODEL_KEY) || browserAi.DEFAULT_MODEL;
       localStorage.setItem(LOCAL_MODEL_KEY, selectedModel);
       const subjectKind = subjectKindFromForm();
       const prompt = ai.buildBrowserSummaryPrompt(chart, {
@@ -269,7 +305,8 @@
       let data;
       let usingLocal = browserAi.webGpuAvailable();
       if (usingLocal) {
-        data = await requestLocalSummary(prompt, selectedModel, { maxTokens: 1300 });
+        data = await requestLocalWithFallback(prompt, browserAi, selectedModel, { maxTokens: 1300 });
+        selectedModel = data.model || selectedModel;
       } else {
         const fallbackEndpoint = normalizeEndpoint(localStorage.getItem(CLOUD_ENDPOINT_KEY) || "");
         if (!fallbackEndpoint) throw new Error("Thiết bị không có WebGPU và chưa cấu hình fallback cloud.");
@@ -286,7 +323,7 @@
         if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Kết luận chưa đạt, đang tự sửa 1 lần...", "busy");
         if (usingLocal) {
           const repairPrompt = ai.buildRepairPrompt(prompt, data.text, issuesBefore, { priorLimit: 1200 });
-          data = await requestLocalSummary(repairPrompt, selectedModel, { maxTokens: 1400 });
+          data = await requestLocalWithFallback(repairPrompt, browserAi, selectedModel, { maxTokens: 1400 });
         } else {
           const fullPrompt = ai.buildSummaryPrompt(chart, { subjectKind, localSummary: localSummaryForAi(chart) });
           const repairPrompt = ai.buildRepairPrompt(fullPrompt, data.text, issuesBefore, { priorLimit: 6000 });
