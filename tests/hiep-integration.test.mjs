@@ -12,7 +12,7 @@ assert.match(autonomous, /hiep-tuvi-ai\.js\?v=1\.1\.0/);
 assert.match(autonomous, /__HIEP_TUVI_CHART__/);
 assert.match(autonomous, /MessageChannel/);
 assert.match(autonomous, /hiep-ai-endpoint/);
-assert.match(autonomous, /__hiep_ai_proxy__\/analyze/);
+assert.match(autonomous, /aiProxyUrl\("analyze"\)/);
 assert.match(autonomous, /prompt_kind:\s*"final_summary_only"/);
 assert.match(autonomous, /summary_only:\s*true/);
 assert.match(autonomous, /AI kết luận & tổng kết/);
