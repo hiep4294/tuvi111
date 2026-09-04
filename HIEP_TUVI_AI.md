@@ -54,9 +54,9 @@ Mặc định:
 Có thêm:
 
 - `Qwen3-1.7B-q4f16_1-MLC` — khoảng 2.0 GB VRAM, dành cho máy yếu;
-- `DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC` — khoảng 5.1 GB VRAM, dành cho máy mạnh.
+- `Qwen3-8B-q4f16_1-MLC` — khoảng 5.7 GB VRAM, dành cho máy mạnh.
 
-Model được chọn trong giao diện. `Qwen3 4B` là cấu hình cân bằng mặc định.
+Model được chọn trong giao diện. `Qwen3 4B` là cấu hình cân bằng mặc định. Nếu model đã chọn không khởi động được vì giới hạn GPU/bộ nhớ, adapter tự thử model nhẹ hơn theo thứ tự phù hợp.
 
 ## Ranh giới trách nhiệm
 
