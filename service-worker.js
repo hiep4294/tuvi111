@@ -142,7 +142,12 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((hit) => hit || caches.match("./index.html"))));
+      .catch(async () => {
+        const hit = await caches.match(event.request, { ignoreSearch: true });
+        if (hit) return hit;
+        if (isDocument) return caches.match("./index.html");
+        throw new Error(`Offline core asset missing: ${url.pathname}`);
+      }));
     return;
   }
 
