@@ -11,10 +11,11 @@ const browserAi = readFileSync(join(root, "browser-ai.js"), "utf8");
 const browserWorker = readFileSync(join(root, "browser-ai-worker.js"), "utf8");
 
 assert.match(autonomous, /hiep-tuvi-ai\.js\?v=1\.2\.0/);
-assert.match(autonomous, /browser-ai\.js\?v=1\.1\.0/);
+assert.match(autonomous, /browser-ai\.js\?v=1\.1\.1/);
 assert.match(autonomous, /__HIEP_TUVI_CHART__/);
 assert.match(autonomous, /HiepBrowserAI/);
 assert.match(autonomous, /buildBrowserSummaryPrompt/);
+assert.match(autonomous, /requestLocalWithFallback/);
 assert.match(autonomous, /AI local kết luận & tổng kết/);
 assert.match(autonomous, /webGpuAvailable/);
 assert.match(autonomous, /final_summary_only/);
@@ -22,6 +23,7 @@ assert.doesNotMatch(autonomous, /Phân tích chuyên sâu — 15 bước/);
 assert.doesNotMatch(autonomous, /originalRunGemini/);
 
 assert.match(browserAi, /Qwen3-4B-q4f16_1-MLC/);
+assert.match(browserAi, /Qwen3-8B-q4f16_1-MLC/);
 assert.match(browserAi, /new Worker/);
 assert.match(browserAi, /type:\s*"module"/);
 assert.match(browserAi, /browser-ai-worker\.js/);
