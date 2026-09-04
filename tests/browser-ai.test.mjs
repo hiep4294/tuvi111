@@ -10,7 +10,8 @@ const workerSource = readFileSync(join(root, "browser-ai-worker.js"), "utf8");
 
 assert.match(controllerSource, /Qwen3-4B-q4f16_1-MLC/);
 assert.match(controllerSource, /Qwen3-1\.7B-q4f16_1-MLC/);
-assert.match(controllerSource, /DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC/);
+assert.match(controllerSource, /Qwen3-8B-q4f16_1-MLC/);
+assert.doesNotMatch(controllerSource, /DeepSeek-R1-Distill-Qwen-7B/);
 assert.match(controllerSource, /new Worker/);
 assert.match(controllerSource, /type:\s*"module"/);
 assert.match(controllerSource, /browser-ai-worker\.js\?v=1\.1\.0/);
@@ -35,9 +36,10 @@ vm.runInNewContext(controllerSource, context, { filename: "browser-ai.js" });
 
 assert.equal(context.HiepBrowserAI.DEFAULT_MODEL, "Qwen3-4B-q4f16_1-MLC");
 assert.equal(context.HiepBrowserAI.MODELS.length, 3);
+assert.equal(context.HiepBrowserAI.MODELS[2].id, "Qwen3-8B-q4f16_1-MLC");
 assert.equal(context.HiepBrowserAI.webGpuAvailable(), false);
 const gpu = await context.HiepBrowserAI.inspectGpu();
 assert.equal(gpu.ok, false);
 assert.match(gpu.reason, /WebGPU/);
 
-console.log("PASS: browser AI controller is WebGPU-only and uses verified WebLLM model IDs");
+console.log("PASS: browser AI controller is WebGPU-only and uses verified Qwen3 WebLLM model IDs");
