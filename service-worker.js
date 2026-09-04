@@ -80,7 +80,14 @@ self.addEventListener("message", (event) => {
   const data = event.data || {};
   if (data.type !== "hiep-ai-endpoint") return;
   const endpoint = normalizeAiEndpoint(data.endpoint);
-  hiepAiEndpoint = validAiEndpoint(endpoint) ? endpoint : "";
+  const ok = validAiEndpoint(endpoint);
+  hiepAiEndpoint = ok ? endpoint : "";
+  const port = event.ports?.[0];
+  if (port) {
+    port.postMessage(ok
+      ? { ok: true }
+      : { ok: false, error: "AI Worker phải dùng HTTPS hoặc localhost." });
+  }
 });
 
 self.addEventListener("install", (event) => {
