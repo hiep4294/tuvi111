@@ -1,14 +1,12 @@
 "use strict";
 
-/* Resilience layer for Tu Vi + Bat Tu Web v1.18.
- * Loaded after app.js and before DOMContentLoaded.
- */
+/* Resilience + Hiep TuVi AI adapter for Tu Vi + Bat Tu Web v1.18. */
 (function installAutonomousMode() {
   const originalRunGemini = window.runGeminiAnalysis;
-  const originalTestGemini = window.testGeminiConnection;
   const originalCallWorker = window.callWorker;
   const originalParseForm = window.parseForm;
   const originalToast = window.toast;
+  let hiepAiLoadPromise = null;
 
   function withTimeout(promise, timeoutMs, message) {
     let timer;
@@ -18,6 +16,66 @@
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }
 
+  function loadHiepTuViAI() {
+    if (window.HiepTuViAI) return Promise.resolve(window.HiepTuViAI);
+    if (hiepAiLoadPromise) return hiepAiLoadPromise;
+    if (!document.head?.appendChild || !document.createElement) return Promise.resolve(null);
+    hiepAiLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "hiep-tuvi-ai.js?v=1.0.0";
+      script.async = false;
+      script.onload = () => resolve(window.HiepTuViAI || null);
+      script.onerror = () => reject(new Error("Không tải được lớp Hiep TuVi AI."));
+      document.head.appendChild(script);
+    }).catch((error) => {
+      hiepAiLoadPromise = null;
+      console.warn(error);
+      return null;
+    });
+    return hiepAiLoadPromise;
+  }
+
+  function normalizeEndpoint(value) {
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+
+  async function configureAiProxy() {
+    const endpoint = normalizeEndpoint(localStorage.getItem("tuvi-gemini-worker-endpoint") || document.getElementById("geminiEndpoint")?.value || "");
+    if (!endpoint || !("serviceWorker" in navigator)) return false;
+    const valid = endpoint.startsWith("https://") || endpoint.startsWith("http://localhost") || endpoint.startsWith("http://127.0.0.1");
+    if (!valid) throw new Error("AI Worker phải dùng HTTPS hoặc localhost.");
+    const registration = await navigator.serviceWorker.ready;
+    const worker = navigator.serviceWorker.controller || registration.active;
+    if (!worker) throw new Error("Service Worker chưa sẵn sàng. Hãy tải lại trang một lần.");
+
+    if (typeof MessageChannel === "undefined") {
+      worker.postMessage({ type: "hiep-ai-endpoint", endpoint });
+      return true;
+    }
+
+    const acknowledged = await withTimeout(new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.ok) resolve(true);
+        else reject(new Error(data.error || "Service Worker từ chối AI endpoint."));
+      };
+      worker.postMessage({ type: "hiep-ai-endpoint", endpoint }, [channel.port2]);
+    }), 3000, "Service Worker chưa xác nhận cấu hình AI endpoint.");
+    return acknowledged;
+  }
+
+  function aiProxyUrl(path) {
+    if (typeof location === "undefined") return path;
+    return new URL(`./__hiep_ai_proxy__/${path}`, location.href).href;
+  }
+
+  // requestGeminiPart() trong app.js gọi hàm này. Đổi sang same-origin proxy để
+  // GitHub Pages vẫn giữ CSP chặt trong khi Service Worker gọi AI Worker bên ngoài.
+  window.geminiAnalyzeUrl = function hiepProxyAnalyzeUrl() {
+    return aiProxyUrl("analyze");
+  };
+
   window.restoreGeminiSettings = function restoreOptionalAiSettings() {
     const endpoint = String(localStorage.getItem("tuvi-gemini-worker-endpoint") || "").trim();
     const endpointNode = document.getElementById("geminiEndpoint");
@@ -25,25 +83,46 @@
     const modelNode = document.getElementById("geminiModel");
     if (modelNode) modelNode.value = "gemini-3.5-flash";
     if (typeof window.setGeminiStatus === "function") {
-      window.setGeminiStatus(endpoint ? "Đã cấu hình tùy chọn" : "AI đang tắt", endpoint ? "ready" : "");
+      window.setGeminiStatus(endpoint ? "Hiep TuVi AI đã cấu hình" : "AI đang tắt", endpoint ? "ready" : "");
     }
   };
 
-  window.testGeminiConnection = function testOptionalAi(options = {}) {
+  window.testGeminiConnection = async function testOptionalAi(options = {}) {
     if (options.silent) return Promise.resolve();
-    return withTimeout(
-      Promise.resolve(originalTestGemini.call(this, options)),
-      12000,
-      "Hết thời gian kiểm tra kết nối AI."
-    );
+    const endpoint = normalizeEndpoint(document.getElementById("geminiEndpoint")?.value || localStorage.getItem("tuvi-gemini-worker-endpoint"));
+    if (!endpoint) {
+      if (!options.silent) alert("Chưa nhập địa chỉ AI Worker.");
+      return;
+    }
+    if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Đang kiểm tra Hiep TuVi AI...", "busy");
+    const button = document.getElementById("testGeminiButton");
+    if (button) button.disabled = true;
+    try {
+      await loadHiepTuViAI();
+      await configureAiProxy();
+      const response = await withTimeout(fetch(aiProxyUrl("health"), { headers: { "Accept": "application/json" }, cache: "no-store" }), 12000, "Hết thời gian kiểm tra kết nối AI.");
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { error: text }; }
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Hiep TuVi AI kết nối tốt", "ready");
+      window.toast?.("AI Worker hoạt động và đã nối lớp Hiep TuVi AI");
+    } catch (error) {
+      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Kết nối AI lỗi", "error");
+      if (!options.silent) alert("Không kết nối được Hiep TuVi AI:\n" + error.message);
+    } finally {
+      if (button) button.disabled = false;
+    }
   };
 
-  window.runGeminiAnalysis = function runOptionalAi(options = {}) {
+  window.runGeminiAnalysis = async function runOptionalAi(options = {}) {
     if (options.automatic) return Promise.resolve();
+    await loadHiepTuViAI();
+    await configureAiProxy();
     return withTimeout(
       Promise.resolve(originalRunGemini.call(this, options)),
-      90000,
-      "AI không phản hồi sau 90 giây. Lá số vẫn được giữ nguyên."
+      180000,
+      "Hiep TuVi AI không phản hồi sau 180 giây. Lá số vẫn được giữ nguyên."
     );
   };
 
@@ -54,7 +133,10 @@
       action === "generate"
         ? "Bộ máy tính quá 120 giây. Hãy tải lại trang và thử lại."
         : "Bộ máy không phản hồi sau 30 giây."
-    );
+    ).then((result) => {
+      if (action === "generate" && result?.chart) window.__HIEP_TUVI_CHART__ = result.chart;
+      return result;
+    });
   };
 
   window.parseForm = function parseAndValidateForm() {
@@ -105,6 +187,7 @@
   };
 
   window.addEventListener("DOMContentLoaded", () => {
+    loadHiepTuViAI();
     const button = document.getElementById("generateButton");
     if (button) {
       const keepIndependentLabel = () => {
@@ -116,6 +199,18 @@
 
     const endpoint = document.getElementById("geminiEndpoint");
     if (endpoint && !localStorage.getItem("tuvi-gemini-worker-endpoint")) endpoint.value = "";
+
+    if (document.querySelectorAll) {
+      document.querySelectorAll(".gemini-panel, .inline-gemini-actions").forEach((node) => { node.hidden = false; });
+      const resultPanel = document.getElementById("geminiResultPanel");
+      const heading = resultPanel?.querySelector?.("h2");
+      const kicker = resultPanel?.querySelector?.(".section-kicker");
+      const tag = resultPanel?.querySelector?.(".tag");
+      if (heading) heading.textContent = "Hiep TuVi AI — luận giải chuyên sâu";
+      if (kicker) kicker.textContent = "TUVI111 ENGINE · HIEP TUVI AI";
+      if (tag) tag.textContent = "LONG_INTEGRATED";
+      document.querySelectorAll("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "Phân tích chuyên sâu — 15 bước"; });
+    }
 
     window.addEventListener("offline", () => window.toast?.("Đang ngoại tuyến - bộ máy cục bộ vẫn hoạt động"));
     window.addEventListener("online", () => window.toast?.("Đã kết nối lại mạng"));
