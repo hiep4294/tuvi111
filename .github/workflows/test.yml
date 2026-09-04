@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches: [main, feature/hiep-tuvi-ai]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: npm run test:syntax && node --check hiep-tuvi-ai.js
+      - name: Unit tests
+        run: npm test
