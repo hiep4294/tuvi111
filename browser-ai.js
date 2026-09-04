@@ -1,7 +1,7 @@
 "use strict";
 
 (function initHiepBrowserAI(root) {
-  const VERSION = "1.1.0";
+  const VERSION = "1.1.1";
   const DEFAULT_MODEL = "Qwen3-4B-q4f16_1-MLC";
   const MODELS = Object.freeze([
     {
@@ -17,10 +17,10 @@
       vramMB: 3432,
     },
     {
-      id: "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
-      label: "DeepSeek R1 Qwen 7B — máy mạnh (~5.1 GB VRAM)",
+      id: "Qwen3-8B-q4f16_1-MLC",
+      label: "Qwen3 8B — máy mạnh (~5.7 GB VRAM)",
       tier: "strong",
-      vramMB: 5107,
+      vramMB: 5696,
     },
   ]);
 
