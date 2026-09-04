@@ -1,131 +1,148 @@
 "use strict";
 
 (function initHiepBrowserAI(root) {
-  const VERSION = "1.0.0";
-  const WEBLLM_URL = "https://esm.run/@mlc-ai/web-llm@0.2.84";
-  const DEFAULT_MODEL = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  const VERSION = "1.1.0";
+  const DEFAULT_MODEL = "Qwen3-4B-q4f16_1-MLC";
   const MODELS = Object.freeze([
     {
-      id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
-      label: "Llama 3.2 3B — mặc định (~2.3 GB VRAM)",
+      id: "Qwen3-1.7B-q4f16_1-MLC",
+      label: "Qwen3 1.7B — máy yếu (~2.0 GB VRAM)",
+      tier: "lite",
+      vramMB: 2037,
+    },
+    {
+      id: "Qwen3-4B-q4f16_1-MLC",
+      label: "Qwen3 4B — mặc định (~3.4 GB VRAM)",
       tier: "standard",
+      vramMB: 3432,
     },
     {
       id: "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
       label: "DeepSeek R1 Qwen 7B — máy mạnh (~5.1 GB VRAM)",
       tier: "strong",
-    },
-    {
-      id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-      label: "Llama 3.2 1B — máy yếu (~0.9 GB VRAM)",
-      tier: "lite",
+      vramMB: 5107,
     },
   ]);
 
-  let libraryPromise = null;
-  let engine = null;
+  let worker = null;
+  let nextId = 1;
   let loadedModel = "";
+  const pending = new Map();
 
   function webGpuAvailable() {
     return typeof navigator !== "undefined" && Boolean(navigator.gpu);
   }
 
-  async function loadLibrary() {
-    if (libraryPromise) return libraryPromise;
-    libraryPromise = import(WEBLLM_URL).catch((error) => {
-      libraryPromise = null;
-      throw new Error(`Không tải được WebLLM runtime: ${String(error?.message || error)}`);
-    });
-    return libraryPromise;
+  function modelRecord(modelId) {
+    return MODELS.find((model) => model.id === modelId) || MODELS.find((model) => model.id === DEFAULT_MODEL) || MODELS[0];
   }
 
   async function inspectGpu() {
-    if (!webGpuAvailable()) {
-      return { ok: false, reason: "Trình duyệt không hỗ trợ WebGPU." };
-    }
+    if (!webGpuAvailable()) return { ok: false, reason: "Trình duyệt không hỗ trợ WebGPU." };
     try {
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) return { ok: false, reason: "Không lấy được WebGPU adapter." };
-      const limits = adapter.limits || {};
+      const info = typeof adapter.requestAdapterInfo === "function"
+        ? await adapter.requestAdapterInfo().catch(() => null)
+        : null;
       return {
         ok: true,
-        maxStorageBufferBindingSize: Number(limits.maxStorageBufferBindingSize || 0),
-        maxBufferSize: Number(limits.maxBufferSize || 0),
+        vendor: info?.vendor || "",
+        architecture: info?.architecture || "",
+        device: info?.device || "",
+        description: info?.description || "",
+        limits: {
+          maxStorageBufferBindingSize: Number(adapter.limits?.maxStorageBufferBindingSize || 0),
+          maxBufferSize: Number(adapter.limits?.maxBufferSize || 0),
+        },
       };
     } catch (error) {
       return { ok: false, reason: String(error?.message || error) };
     }
   }
 
-  function modelRecord(modelId) {
-    return MODELS.find((model) => model.id === modelId) || MODELS[0];
+  function ensureWorker() {
+    if (worker) return worker;
+    if (typeof Worker === "undefined") throw new Error("Trình duyệt không hỗ trợ Web Worker.");
+    const url = new URL("browser-ai-worker.js?v=1.1.0", location.href);
+    worker = new Worker(url, { type: "module", name: "hiep-tuvi-browser-ai" });
+
+    worker.onmessage = (event) => {
+      const message = event.data || {};
+      const requestId = Number(message.requestId || 0);
+      if (message.type === "progress") {
+        const task = pending.get(requestId);
+        if (task?.onProgress) task.onProgress(message.progress || {});
+        return;
+      }
+      if (message.type === "ready") {
+        loadedModel = String(message.model || loadedModel || "");
+      }
+      const task = pending.get(requestId);
+      if (!task) return;
+      pending.delete(requestId);
+      clearTimeout(task.timer);
+      if (message.type === "error") task.reject(new Error(message.error || "AI local lỗi không xác định."));
+      else task.resolve(message.data ?? message);
+    };
+
+    worker.onerror = (event) => {
+      const error = new Error(event?.message || "Không khởi động được WebLLM worker.");
+      for (const [id, task] of pending) {
+        clearTimeout(task.timer);
+        task.reject(error);
+        pending.delete(id);
+      }
+      try { worker.terminate(); } catch (_) {}
+      worker = null;
+      loadedModel = "";
+    };
+    return worker;
+  }
+
+  function request(type, payload = {}, options = {}) {
+    const activeWorker = ensureWorker();
+    const requestId = nextId++;
+    const timeoutMs = Math.max(30000, Number(options.timeoutMs || 20 * 60 * 1000));
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pending.delete(requestId);
+        reject(new Error("AI local không phản hồi trong giới hạn an toàn."));
+      }, timeoutMs);
+      pending.set(requestId, { resolve, reject, timer, onProgress: options.onProgress });
+      activeWorker.postMessage({ type, requestId, ...payload });
+    });
   }
 
   async function ensureModel(modelId = DEFAULT_MODEL, options = {}) {
+    if (!webGpuAvailable()) throw new Error("WebGPU chưa sẵn sàng. Hãy dùng Chrome/Edge/Safari mới trên máy có GPU hỗ trợ WebGPU.");
     const selected = modelRecord(modelId).id;
-    if (!webGpuAvailable()) throw new Error("WebGPU chưa sẵn sàng. Hãy dùng Chrome/Edge mới trên máy có GPU phù hợp.");
-    if (engine && loadedModel === selected) return engine;
-
-    const webllm = await loadLibrary();
-    if (engine && loadedModel !== selected) {
-      try { await engine.unload(); } catch (_) {}
-      engine = null;
-      loadedModel = "";
-    }
-
-    const appConfig = {
-      ...webllm.prebuiltAppConfig,
-      cacheBackend: "indexeddb",
-    };
-
-    engine = await webllm.CreateMLCEngine(selected, {
-      appConfig,
-      logLevel: "WARN",
-      initProgressCallback(report) {
-        if (typeof options.onProgress === "function") {
-          options.onProgress({
-            text: String(report?.text || "Đang tải model..."),
-            progress: Number(report?.progress || 0),
-            timeElapsed: Number(report?.timeElapsed || 0),
-          });
-        }
-      },
-    });
-    loadedModel = selected;
-    return engine;
+    if (loadedModel === selected) return { ok: true, model: selected, cached: true };
+    const result = await request("init", { model: selected }, options);
+    loadedModel = String(result?.model || selected);
+    return result;
   }
 
   async function generate(prompt, options = {}) {
+    if (!String(prompt || "").trim()) throw new Error("Prompt AI local đang trống.");
     const selected = modelRecord(options.model || DEFAULT_MODEL).id;
-    const currentEngine = await ensureModel(selected, options);
-    const maxTokens = Math.max(256, Math.min(1800, Number(options.maxTokens || 1400)));
-    const response = await currentEngine.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: String(prompt || ""),
-        },
-      ],
-      temperature: Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0.25,
-      top_p: 0.9,
-      max_tokens: maxTokens,
-    });
-
-    const text = String(response?.choices?.[0]?.message?.content || "").trim();
-    if (!text) throw new Error("Model cục bộ không trả về nội dung.");
-    return {
-      text,
+    const maxTokens = Math.max(256, Math.min(1800, Number(options.maxTokens || 1300)));
+    const temperature = Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0.2;
+    const data = await request("generate", {
       model: selected,
-      local: true,
-      usage: response?.usage || {},
-    };
+      prompt: String(prompt),
+      maxTokens,
+      temperature,
+    }, options);
+    loadedModel = String(data?.model || selected);
+    return data;
   }
 
   async function unload() {
-    if (engine) {
-      try { await engine.unload(); } catch (_) {}
-    }
-    engine = null;
+    if (!worker) return;
+    try { await request("unload", {}, { timeoutMs: 60000 }); } catch (_) {}
+    try { worker.terminate(); } catch (_) {}
+    worker = null;
     loadedModel = "";
   }
 
@@ -133,12 +150,12 @@
     VERSION,
     DEFAULT_MODEL,
     MODELS,
-    WEBLLM_URL,
     webGpuAvailable,
     inspectGpu,
     ensureModel,
     generate,
     unload,
+    modelRecord,
     get loadedModel() { return loadedModel; },
   });
 })(typeof globalThis !== "undefined" ? globalThis : this);
