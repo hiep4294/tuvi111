@@ -1,6 +1,6 @@
-# Hiep TuVi AI
+# Hiep TuVi AI — SUMMARY_ONLY
 
-Lớp AI chuyên gia dùng trực tiếp dữ liệu do `tuvi111` tính toán để tạo bài luận dài theo chuẩn `LONG_INTEGRATED`.
+`tuvi111` tự tính và hiển thị toàn bộ phần kỹ thuật. AI chỉ đọc kết quả đã tính để **đối chiếu, phản biện, kết luận và tổng kết cuối**.
 
 ## Kiến trúc
 
@@ -8,103 +8,104 @@ Lớp AI chuyên gia dùng trực tiếp dữ liệu do `tuvi111` tính toán đ
 Thông tin sinh
     ↓
 tuvi111 engine (Pyodide/Python)
+    ├─ an sao + 12 cung
+    ├─ Can Chi / Cục / Mệnh–Thân
+    ├─ Tứ Hóa / Tuần–Triệt / Tràng Sinh
+    ├─ quan hệ cung
+    ├─ Bát Tự / Ngũ Hành / đại vận / lưu niên
+    └─ tổng luận cục bộ
     ↓
-Chart JSON + Bát Tự + quan hệ cung + prompt gốc
+Evidence package đã khóa
     ↓
-hiep-tuvi-ai.js
-    ├─ khóa dữ kiện engine
-    ├─ bổ sung checklist toàn bộ sao từng cung
-    ├─ bắt buộc tam phương/tứ chính, Tứ Hóa, Tuần/Triệt, Tràng Sinh
-    ├─ mở rộng Bát Tự: tàng can, Thập Thần, tháng lệnh, vượng-suy, điều hậu/phù-ức
-    ├─ red-team và tổng hợp liên cung
-    └─ quality gate + viết lại một lần nếu thiếu nội dung bắt buộc
+Hiep TuVi AI — SUMMARY_ONLY
+    ├─ tổng hợp Mệnh–Tài–Quan, Mệnh–Di, cung có Thân
+    ├─ chọn Tứ Hóa/Tuần–Triệt/Tràng Sinh có sức cấu trúc
+    ├─ đối chiếu Tử Vi ↔ Bát Tự ↔ Ngũ Hành
+    ├─ red-team
+    └─ kết luận cuối + ứng dụng thực tế
     ↓
-AI Worker / LLM
-    ↓
-Báo cáo 15 bước
+1 báo cáo tổng kết
 ```
 
-`tuvi111` là nguồn dữ liệu tính toán. AI không được tự an lại sao hoặc âm thầm sửa Can Chi/Cục/Tứ Hóa/Tràng Sinh.
+## Ranh giới trách nhiệm
 
-## 15 bước báo cáo
+### `tuvi111` tự chạy, không cần AI
 
-1. Tổng quan lá số
-2. Mệnh
-3. Phụ Mẫu
-4. Phúc Đức
-5. Điền Trạch
-6. Quan Lộc
-7. Nô Bộc
-8. Thiên Di
-9. Tật Ách
-10. Tài Bạch
-11. Tử Tức
-12. Phu Thê
-13. Huynh Đệ
-14. Tứ Trụ Bát Tự
-15. Kết luận tổng hợp + red-team
-
-## Chuẩn bắt buộc cho từng cung
-
-Mỗi cung phải có:
-
-- nền cung, địa chi và Ngũ Hành;
-- chính tinh, miếu/vượng/đắc/bình/hãm nếu engine có;
-- **tất cả sao nguyên cục trong cung** và tác dụng của từng sao;
-- tương tác sao và bộ/cách cục;
-- Ngũ Hành cung ↔ sao ↔ Mệnh/Cục;
-- Vòng Tràng Sinh;
-- tam phương tứ chính + đối cung;
-- nhị hợp và giáp cung;
+- quy đổi ngày giờ và lịch pháp;
+- lập 12 cung;
+- an chính tinh/phụ tinh;
+- miếu/vượng/đắc/hãm theo cấu hình engine;
+- Mệnh, Thân, Cục;
+- tam phương/tứ chính và quan hệ cung;
 - Tứ Hóa;
 - Tuần/Triệt;
-- Mệnh–Thân và cung liên đới;
-- tổng hợp cung dài;
-- kết luận Mạnh / Yếu / Điều kiện / confidence.
+- Tràng Sinh;
+- Bát Tự, Ngũ Hành, đại vận/lưu niên khi có dữ liệu;
+- hiển thị JSON, bảng lá số, quan hệ cung và tổng luận cục bộ.
 
-Quality gate hiện kiểm tra tối thiểu: độ dài, đủ tên sao, có tam phương, Tứ Hóa và kết luận. Nếu thiếu, hệ thống gửi lại prompt yêu cầu viết lại phần đó một lần.
+### AI chỉ làm
 
-## Bát Tự
+1. Đọc evidence cuối do `tuvi111` tạo.
+2. Chọn những cấu trúc quan trọng nhất thay vì kể lại mọi sao.
+3. Đối chiếu các hệ nhưng không ép chúng đồng thuận.
+4. Phản biện chính kết luận của mình.
+5. Đưa ra kết luận tổng quát, điểm mạnh, điểm dễ lệch và ứng dụng thực tế.
+6. Với trẻ em, ưu tiên khí chất, học tập, tự điều tiết, môi trường và cách nuôi dạy.
 
-Không đếm Ngũ Hành cơ học. Phải xét:
+AI **không được** viết lại 12 cung như 12 request riêng và không được tự an lại lá số.
 
-- bốn trụ và Nhật chủ;
-- tàng can + Thập Thần;
-- tiết khí/tháng lệnh;
-- căn, sinh trợ, tiết khí, khắc chế;
-- hợp/xung/hình/hại/phá;
-- cách cục khi đủ điều kiện;
-- điều hậu và phù-ức tách riêng khi có khác biệt;
-- dụng/hỷ/kỵ có điều kiện;
-- đại vận tách khỏi nguyên cục.
+## Số lần gọi AI
+
+Bình thường: **1 request**.
+
+Nếu quality gate phát hiện kết luận quá ngắn hoặc thiếu các trục bắt buộc: tối đa **1 request sửa lại**.
+
+Do đó chi phí và độ trễ thấp hơn đáng kể so với kiến trúc 15 bước trước.
+
+## Quality gate phần kết luận
+
+Phần AI phải có tối thiểu:
+
+- kết luận tổng quát;
+- Mệnh–Tài–Quan / Mệnh–Di / cung có Thân;
+- đối chiếu Bát Tự;
+- Tứ Hóa/Tuần–Triệt/Tràng Sinh có sức cấu trúc;
+- điểm mạnh và điểm dễ lệch;
+- ứng dụng thực tế;
+- red-team/phản biện;
+- 3–5 góc nhìn dễ bỏ sót;
+- kết luận cuối: lõi mạnh nhất, rủi ro lớn nhất, chìa khóa phát triển.
+
+## Dòng dữ liệu
+
+`hiep-tuvi-ai.js` tạo một evidence package gọn từ chart JSON:
+
+- `heaven`;
+- 12 `palaces` + toàn bộ sao đã an;
+- `bazi`;
+- `annual`;
+- `relations`;
+- `combined_analysis`;
+- metadata engine/chart.
+
+AI chỉ đọc evidence này. Nếu phát hiện mâu thuẫn, phải báo mâu thuẫn; không tự sửa FACT/CALC.
 
 ## Kết nối AI Worker
 
-Ứng dụng vẫn chạy offline để lập lá số và tạo tổng luận cục bộ. AI chuyên sâu là tùy chọn.
+Ứng dụng vẫn chạy offline cho phần lập lá số. AI tổng kết là tùy chọn.
 
-Khi người dùng cấu hình một AI Worker HTTPS, `autonomous.js` gửi endpoint cho Service Worker. Trang gọi đường dẫn cùng origin:
+Frontend gọi same-origin proxy:
 
 - `GET ./__hiep_ai_proxy__/health`
 - `POST ./__hiep_ai_proxy__/analyze`
 
-Service Worker mới chuyển tiếp sang Worker bên ngoài. Cách này giữ CSP của GitHub Pages chặt và không yêu cầu đưa API key vào frontend.
+Service Worker chuyển tiếp tới AI Worker HTTPS. API key lưu trong secret backend/Cloudflare Worker, không commit lên GitHub và không lưu ở trình duyệt.
 
-Worker phải trả JSON tương thích với giao diện hiện tại, tối thiểu:
+Worker mẫu dùng Gemini API. Model hiện mặc định `gemini-3.8-flash`, có thể thay bằng biến môi trường mà không thay engine `tuvi111`.
 
-```json
-{
-  "text": "nội dung luận giải",
-  "usage": {
-    "total_token_count": 1234
-  }
-}
-```
+## An toàn
 
-API key của nhà cung cấp LLM phải lưu ở secret của Worker/backend, không commit lên GitHub và không lưu trong trình duyệt.
-
-## An toàn và phạm vi
-
-Tử Vi/Bát Tự là hệ diễn giải truyền thống, không phải mô hình khoa học chứng minh quan hệ nhân quả. AI không được dùng lá số để khẳng định chắc chắn tử vong, bệnh nặng, phá sản, ngoại tình, phạm tội hoặc thay thế tư vấn y tế/pháp lý/tài chính.
+Tử Vi/Bát Tự là hệ diễn giải truyền thống. AI không được dùng lá số để khẳng định chắc chắn tử vong, bệnh nặng, tai họa, phá sản, ngoại tình, phạm tội hoặc thay thế tư vấn y tế/pháp lý/tài chính.
 
 ## Test
 
@@ -114,4 +115,4 @@ node --check hiep-tuvi-ai.js
 npm test
 ```
 
-Test riêng `tests/hiep-tuvi-ai.test.mjs` kiểm tra prompt từng cung, checklist sao, quan hệ cung, Bát Tự và quality gate.
+Các test Hiep bảo đảm AI giữ đúng profile `SUMMARY_ONLY` và không quay lại luồng 15 bước.

@@ -1,8 +1,7 @@
 "use strict";
 
-/* Resilience + Hiep TuVi AI adapter for Tu Vi + Bat Tu Web v1.18. */
+/* Resilience + Hiep TuVi AI summary-only adapter for Tu Vi + Bat Tu Web. */
 (function installAutonomousMode() {
-  const originalRunGemini = window.runGeminiAnalysis;
   const originalCallWorker = window.callWorker;
   const originalParseForm = window.parseForm;
   const originalToast = window.toast;
@@ -22,7 +21,7 @@
     if (!document.head?.appendChild || !document.createElement) return Promise.resolve(null);
     hiepAiLoadPromise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = "hiep-tuvi-ai.js?v=1.0.0";
+      script.src = "hiep-tuvi-ai.js?v=1.1.0";
       script.async = false;
       script.onload = () => resolve(window.HiepTuViAI || null);
       script.onerror = () => reject(new Error("Không tải được lớp Hiep TuVi AI."));
@@ -53,7 +52,7 @@
       return true;
     }
 
-    const acknowledged = await withTimeout(new Promise((resolve, reject) => {
+    return withTimeout(new Promise((resolve, reject) => {
       const channel = new MessageChannel();
       channel.port1.onmessage = (event) => {
         const data = event.data || {};
@@ -62,7 +61,6 @@
       };
       worker.postMessage({ type: "hiep-ai-endpoint", endpoint }, [channel.port2]);
     }), 3000, "Service Worker chưa xác nhận cấu hình AI endpoint.");
-    return acknowledged;
   }
 
   function aiProxyUrl(path) {
@@ -70,18 +68,94 @@
     return new URL(`./__hiep_ai_proxy__/${path}`, location.href).href;
   }
 
-  // requestGeminiPart() trong app.js gọi hàm này. Đổi sang same-origin proxy để
-  // GitHub Pages vẫn giữ CSP chặt trong khi Service Worker gọi AI Worker bên ngoài.
-  window.geminiAnalyzeUrl = function hiepProxyAnalyzeUrl() {
-    return aiProxyUrl("analyze");
-  };
+  function subjectKindFromForm() {
+    const value = String(document.getElementById("birthDate")?.value || "");
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return "unknown";
+    const birthYear = Number(match[1]);
+    const currentYear = new Date().getFullYear();
+    return currentYear - birthYear < 18 ? "child" : "adult";
+  }
+
+  function localSummaryForAi(chart) {
+    try {
+      if (window.OfflineReading?.buildOfflineReading) return window.OfflineReading.buildOfflineReading(chart);
+    } catch (_) {}
+    return null;
+  }
+
+  function setAiBusy(busy) {
+    const buttons = [document.getElementById("runGeminiButton"), document.getElementById("runGeminiInlineButton")].filter(Boolean);
+    for (const button of buttons) {
+      button.disabled = busy;
+      button.textContent = busy ? "AI đang tổng kết..." : "AI kết luận & tổng kết";
+    }
+  }
+
+  async function requestFinalSummary(prompt, model, metadata = {}) {
+    const response = await withTimeout(fetch(aiProxyUrl("analyze"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        model,
+        max_output_tokens: 7000,
+        metadata: {
+          prompt_kind: "final_summary_only",
+          summary_only: true,
+          ...metadata,
+        },
+      }),
+      cache: "no-store",
+    }), 180000, "Hiep TuVi AI không phản hồi sau 180 giây.");
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; }
+    catch (_) { data = { error: text }; }
+    if (!response.ok) throw new Error(data.error || data.message || `HTTP ${response.status}`);
+    if (!data.text) throw new Error("AI không trả về phần kết luận.");
+    return data;
+  }
+
+  function renderFinalSummary(data, quality) {
+    const output = document.getElementById("geminiOutput");
+    if (!output) return;
+    const usage = Number(data?.usage?.total_token_count || data?.usage?.totalTokenCount || 0);
+    const repaired = quality?.repaired ? " · đã tự sửa 1 lần" : "";
+    const meta = `AI chỉ kết luận/tổng kết${repaired}${usage ? ` · ${usage} token` : ""}`;
+    output.dataset.raw = String(data.text || "");
+    if (typeof window.renderMarkdownSafe === "function") {
+      output.innerHTML = `<div class="ai-meta">${meta}</div><section class="ai-report-part">${window.renderMarkdownSafe(data.text)}</section>`;
+    } else {
+      output.innerHTML = "";
+      const metaNode = document.createElement("div");
+      metaNode.className = "ai-meta";
+      metaNode.textContent = meta;
+      const pre = document.createElement("pre");
+      pre.textContent = String(data.text || "");
+      output.append(metaNode, pre);
+    }
+  }
+
+  function renderAiError(error) {
+    const output = document.getElementById("geminiOutput");
+    if (!output) return;
+    output.innerHTML = "";
+    const node = document.createElement("div");
+    node.className = "ai-error";
+    node.textContent = `Không tạo được kết luận AI: ${String(error?.message || error)}`;
+    output.appendChild(node);
+  }
 
   window.restoreGeminiSettings = function restoreOptionalAiSettings() {
     const endpoint = String(localStorage.getItem("tuvi-gemini-worker-endpoint") || "").trim();
     const endpointNode = document.getElementById("geminiEndpoint");
     if (endpointNode) endpointNode.value = endpoint;
     const modelNode = document.getElementById("geminiModel");
-    if (modelNode) modelNode.value = "gemini-3.5-flash";
+    if (modelNode) {
+      modelNode.innerHTML = '<option value="gemini-3.8-flash" selected>Gemini 3.8 Flash — tổng kết</option>';
+      modelNode.value = "gemini-3.8-flash";
+    }
     if (typeof window.setGeminiStatus === "function") {
       window.setGeminiStatus(endpoint ? "Hiep TuVi AI đã cấu hình" : "AI đang tắt", endpoint ? "ready" : "");
     }
@@ -106,7 +180,7 @@
       try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { error: text }; }
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Hiep TuVi AI kết nối tốt", "ready");
-      window.toast?.("AI Worker hoạt động và đã nối lớp Hiep TuVi AI");
+      window.toast?.("AI Worker hoạt động — AI chỉ dùng cho kết luận/tổng kết");
     } catch (error) {
       if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Kết nối AI lỗi", "error");
       if (!options.silent) alert("Không kết nối được Hiep TuVi AI:\n" + error.message);
@@ -115,15 +189,55 @@
     }
   };
 
-  window.runGeminiAnalysis = async function runOptionalAi(options = {}) {
+  window.runGeminiAnalysis = async function runSummaryOnlyAi(options = {}) {
     if (options.automatic) return Promise.resolve();
-    await loadHiepTuViAI();
-    await configureAiProxy();
-    return withTimeout(
-      Promise.resolve(originalRunGemini.call(this, options)),
-      180000,
-      "Hiep TuVi AI không phản hồi sau 180 giây. Lá số vẫn được giữ nguyên."
-    );
+    const chart = window.__HIEP_TUVI_CHART__;
+    if (!chart) {
+      alert("Chưa lập lá số. Hãy lập lá số trước khi yêu cầu AI kết luận.");
+      return;
+    }
+    const endpoint = normalizeEndpoint(document.getElementById("geminiEndpoint")?.value || localStorage.getItem("tuvi-gemini-worker-endpoint"));
+    if (!endpoint) {
+      alert("Chưa cấu hình AI Worker. Phần lập lá số và phân tích cục bộ vẫn dùng được bình thường.");
+      return;
+    }
+
+    setAiBusy(true);
+    if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("AI đang đọc kết quả cục bộ và tổng kết...", "busy");
+    const output = document.getElementById("geminiOutput");
+    if (output) output.innerHTML = '<div class="ai-loading"><span></span><p>AI chỉ đang đối chiếu và kết luận từ dữ liệu đã tính.</p></div>';
+
+    try {
+      const ai = await loadHiepTuViAI();
+      if (!ai?.buildSummaryPrompt) throw new Error("Lớp Hiep TuVi AI SUMMARY_ONLY chưa sẵn sàng.");
+      await configureAiProxy();
+      const model = document.getElementById("geminiModel")?.value || "gemini-3.8-flash";
+      const prompt = ai.buildSummaryPrompt(chart, {
+        subjectKind: subjectKindFromForm(),
+        localSummary: localSummaryForAi(chart),
+      });
+      let data = await requestFinalSummary(prompt, model, { chart_id: chart.chart_id || null });
+      const issuesBefore = ai.validateSummary(data.text);
+      let quality = { repaired: false, issues_before: issuesBefore, issues_after: issuesBefore };
+
+      if (issuesBefore.length) {
+        if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Kết luận chưa đạt, AI đang tự sửa một lần...", "busy");
+        const repairPrompt = ai.buildRepairPrompt(prompt, data.text, issuesBefore);
+        data = await requestFinalSummary(repairPrompt, model, { chart_id: chart.chart_id || null, repair: true });
+        quality = { repaired: true, issues_before: issuesBefore, issues_after: ai.validateSummary(data.text) };
+      }
+
+      renderFinalSummary(data, quality);
+      if (typeof window.setGeminiStatus === "function") {
+        window.setGeminiStatus(quality.issues_after.length ? "Đã tổng kết · còn cảnh báo chất lượng" : "Đã kết luận & tổng kết", quality.issues_after.length ? "busy" : "ready");
+      }
+      window.toast?.("Đã hoàn thành kết luận AI");
+    } catch (error) {
+      renderAiError(error);
+      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("AI tổng kết lỗi", "error");
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   window.callWorker = function callWorkerWithTimeout(action, payload = {}) {
@@ -206,10 +320,16 @@
       const heading = resultPanel?.querySelector?.("h2");
       const kicker = resultPanel?.querySelector?.(".section-kicker");
       const tag = resultPanel?.querySelector?.(".tag");
-      if (heading) heading.textContent = "Hiep TuVi AI — luận giải chuyên sâu";
-      if (kicker) kicker.textContent = "TUVI111 ENGINE · HIEP TUVI AI";
-      if (tag) tag.textContent = "LONG_INTEGRATED";
-      document.querySelectorAll("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "Phân tích chuyên sâu — 15 bước"; });
+      if (heading) heading.textContent = "Hiep TuVi AI — kết luận & tổng kết";
+      if (kicker) kicker.textContent = "TUVI111 TỰ TÍNH · AI CHỈ KẾT LUẬN";
+      if (tag) tag.textContent = "SUMMARY_ONLY";
+      document.querySelectorAll("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "AI kết luận & tổng kết"; });
+      const inlineNote = document.querySelector(".inline-gemini-actions .muted");
+      if (inlineNote) inlineNote.textContent = "12 cung, Bát Tự và quan hệ cung chạy bằng engine cục bộ. AI chỉ nhận kết quả cuối để đối chiếu, phản biện và tổng kết.";
+      const panelTitle = document.querySelector(".gemini-panel h2");
+      if (panelTitle) panelTitle.textContent = "Hiep TuVi AI";
+      const resultNote = document.querySelector(".ai-result-location-note");
+      if (resultNote) resultNote.textContent = "AI không lập lại 12 cung. Sau khi hệ thống tính xong, bấm AI kết luận & tổng kết để gửi một gói evidence cuối tới Worker.";
     }
 
     window.addEventListener("offline", () => window.toast?.("Đang ngoại tuyến - bộ máy cục bộ vẫn hoạt động"));
