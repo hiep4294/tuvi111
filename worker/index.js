@@ -1,17 +1,21 @@
 const DEFAULT_MODEL = "gemini-3.8-flash";
 const DEFAULT_ALLOWED_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"];
 
+function responseHeaders(origin = "*") {
+  return {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Headers": "Content-Type, Accept",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
 function json(data, status = 200, origin = "*") {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": origin || "*",
-      "Access-Control-Allow-Headers": "Content-Type, Accept",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Vary": "Origin",
-    },
+    headers: responseHeaders(origin),
   });
 }
 
@@ -98,7 +102,9 @@ export default {
   async fetch(request, env) {
     const origin = allowedOrigin(request, env);
     if (!origin) return json({ error: "Origin không được phép." }, 403, String(env.ALLOWED_ORIGIN || "*"));
-    if (request.method === "OPTIONS") return json({ ok: true }, 204, origin);
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: responseHeaders(origin) });
+    }
 
     const url = new URL(request.url);
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
@@ -106,7 +112,7 @@ export default {
       return json({
         ok: true,
         service: "Hiep TuVi AI Worker",
-        version: "1.0.0",
+        version: "1.0.1",
         default_model: String(env.DEFAULT_MODEL || DEFAULT_MODEL),
         allowed_models: models,
       }, 200, origin);
