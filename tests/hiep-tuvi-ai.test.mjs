@@ -44,8 +44,10 @@ assert.doesNotMatch(prompt, /NHIỆM VỤ BƯỚC/);
 const issues = ai.validateSummary("Kết luận ngắn");
 assert.ok(issues.some((item) => item.includes("quá ngắn")));
 assert.ok(issues.some((item) => item.includes("Bát Tự")));
+assert.ok(issues.some((item) => item.includes("Mệnh–Di")));
+assert.ok(issues.some((item) => item.includes("Tứ Hóa")));
 
-const longSummary = `${"Kết luận tổng quát Mệnh Tài Quan Bát Tự Nhật chủ phản biện Red team Kết luận cuối. ".repeat(80)}`;
+const longSummary = `${"Kết luận tổng quát Mệnh Tài Quan Thiên Di Tứ Hóa Bát Tự Nhật chủ phản biện Red team Kết luận cuối. ".repeat(80)}`;
 assert.deepEqual(ai.validateSummary(longSummary), []);
 
 const repair = ai.buildRepairPrompt(prompt, "bản cũ", ["thiếu phản biện"]);
