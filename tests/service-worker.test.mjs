@@ -50,10 +50,11 @@ const success = createHarness();
 await runInstall(success);
 assert.ok(success.stored.includes("./engine.zip"));
 assert.ok(success.stored.includes("./offline-summary.js"));
+assert.ok(success.stored.includes("./browser-ai.js"));
+assert.ok(success.stored.includes("./browser-ai-worker.js"));
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./vendor/pyodide/pyodide.asm.wasm");
+const failure = createHarness("./browser-ai-worker.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires a complete offline runtime");
-
+console.log("PASS: service worker requires deterministic engine plus browser AI runtime files");
