@@ -124,17 +124,13 @@ ${JSON.stringify(evidence, null, 2)}
     const normalized = normalize(value);
     const issues = [];
     if (value.length < 3500) issues.push(`Kết luận quá ngắn (${value.length} ký tự, cần >= 3500).`);
-    const groups = [
-      ["Kết luận tổng quát", ["ket luan tong quat", "tong quan"]],
-      ["Mệnh–Tài–Quan", ["menh tai quan", "menh", "tai", "quan"]],
-      ["Bát Tự", ["bat tu", "nhat chu"]],
-      ["Red-team/phản biện", ["red team", "phan bien"]],
-      ["Kết luận cuối", ["ket luan cuoi", "loi ket"]],
-    ];
-    for (const [label, alternatives] of groups) {
-      const ok = alternatives.some((item) => normalized.includes(item));
-      if (!ok) issues.push(`Thiếu mục/trục: ${label}.`);
-    }
+    if (!normalized.includes("ket luan tong quat") && !normalized.includes("tong quan")) issues.push("Thiếu mục/trục: Kết luận tổng quát.");
+    if (!(normalized.includes("menh") && normalized.includes("tai") && normalized.includes("quan"))) issues.push("Thiếu trục: Mệnh–Tài–Quan.");
+    if (!normalized.includes("menh") || !normalized.includes("di")) issues.push("Thiếu trục: Mệnh–Di.");
+    if (!normalized.includes("bat tu") && !normalized.includes("nhat chu")) issues.push("Thiếu mục/trục: Bát Tự.");
+    if (!normalized.includes("tu hoa") && !normalized.includes("hoa loc") && !normalized.includes("hoa quyen") && !normalized.includes("hoa khoa") && !normalized.includes("hoa ky")) issues.push("Thiếu lớp tổng hợp: Tứ Hóa.");
+    if (!normalized.includes("red team") && !normalized.includes("phan bien")) issues.push("Thiếu mục: Red-team/phản biện.");
+    if (!normalized.includes("ket luan cuoi") && !normalized.includes("loi ket")) issues.push("Thiếu mục: Kết luận cuối.");
     return issues;
   }
 
