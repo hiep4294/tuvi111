@@ -1,4 +1,4 @@
-const CACHE = "tuvi-battu-web-v1.18-hiep-ai-1";
+const CACHE = "tuvi-battu-web-v1.18-browser-ai-1";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,8 @@ const CORE_ASSETS = [
   "./autonomous.js",
   "./offline-summary.js",
   "./hiep-tuvi-ai.js",
+  "./browser-ai.js",
+  "./browser-ai-worker.js",
   "./engine-worker.js",
   "./engine.zip",
   "./manifest.webmanifest",
@@ -36,7 +38,7 @@ function jsonResponse(data, status = 200) {
 }
 
 async function proxyAiHealth() {
-  if (!hiepAiEndpoint) return jsonResponse({ error: "Chưa cấu hình AI Worker." }, 503);
+  if (!hiepAiEndpoint) return jsonResponse({ error: "Chưa cấu hình AI fallback." }, 503);
   try {
     const response = await fetch(hiepAiEndpoint, {
       method: "GET",
@@ -49,12 +51,12 @@ async function proxyAiHealth() {
       headers: { "Content-Type": response.headers.get("Content-Type") || "application/json; charset=utf-8", "Cache-Control": "no-store" },
     });
   } catch (error) {
-    return jsonResponse({ error: `AI Worker health lỗi: ${String(error?.message || error)}` }, 502);
+    return jsonResponse({ error: `AI fallback health lỗi: ${String(error?.message || error)}` }, 502);
   }
 }
 
 async function proxyAiAnalyze(request) {
-  if (!hiepAiEndpoint) return jsonResponse({ error: "Chưa cấu hình AI Worker." }, 503);
+  if (!hiepAiEndpoint) return jsonResponse({ error: "Chưa cấu hình AI fallback." }, 503);
   try {
     const body = await request.arrayBuffer();
     const response = await fetch(`${hiepAiEndpoint}/analyze`, {
@@ -72,7 +74,7 @@ async function proxyAiAnalyze(request) {
       headers: { "Content-Type": response.headers.get("Content-Type") || "application/json; charset=utf-8", "Cache-Control": "no-store" },
     });
   } catch (error) {
-    return jsonResponse({ error: `AI Worker analyze lỗi: ${String(error?.message || error)}` }, 502);
+    return jsonResponse({ error: `AI fallback analyze lỗi: ${String(error?.message || error)}` }, 502);
   }
 }
 
@@ -86,7 +88,7 @@ self.addEventListener("message", (event) => {
   if (port) {
     port.postMessage(ok
       ? { ok: true }
-      : { ok: false, error: "AI Worker phải dùng HTTPS hoặc localhost." });
+      : { ok: false, error: "AI fallback phải dùng HTTPS hoặc localhost." });
   }
 });
 
@@ -101,6 +103,7 @@ self.addEventListener("install", (event) => {
     }
   })());
 });
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
@@ -129,7 +132,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const isDocument = event.request.mode === "navigate";
-  const isVersionedCore = /\/(index\.html|app\.js|autonomous\.js|offline-summary\.js|hiep-tuvi-ai\.js|styles\.css|styles-autonomous\.css|engine-worker\.js|service-worker\.js|engine\.zip)$/.test(url.pathname);
+  const isVersionedCore = /\/(index\.html|app\.js|autonomous\.js|offline-summary\.js|hiep-tuvi-ai\.js|browser-ai\.js|browser-ai-worker\.js|styles\.css|styles-autonomous\.css|engine-worker\.js|service-worker\.js|engine\.zip)$/.test(url.pathname);
   if (isDocument || isVersionedCore) {
     event.respondWith(fetch(event.request, { cache: "no-store" })
       .then(async (response) => {
