@@ -1,7 +1,7 @@
 "use strict";
 
 (function initHiepTuViAI(root) {
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const PROFILE = "SUMMARY_ONLY";
 
   function normalize(value) {
@@ -23,6 +23,17 @@
     return root?.__HIEP_TUVI_CHART__ || null;
   }
 
+  function clip(value, maxChars) {
+    let text;
+    if (typeof value === "string") text = value;
+    else {
+      try { text = JSON.stringify(value); }
+      catch (_) { text = String(value ?? ""); }
+    }
+    if (text.length <= maxChars) return text;
+    return `${text.slice(0, Math.max(0, maxChars - 20))}...[đã rút gọn]`;
+  }
+
   function compactStar(star) {
     return {
       name: String(star?.saoTen || star?.name || "").trim(),
@@ -30,6 +41,13 @@
       nature: String(star?.nature || "").trim() || null,
       element: String(star?.element_name || star?.element || "").trim() || null,
     };
+  }
+
+  function compactStarToken(star) {
+    const data = compactStar(star);
+    if (!data.name) return "";
+    const tags = [data.dignity, data.element].filter(Boolean);
+    return tags.length ? `${data.name}[${tags.join("/")}]` : data.name;
   }
 
   function compactPalace(palace) {
@@ -63,6 +81,36 @@
     };
   }
 
+  function buildCompactEvidenceText(chart, options = {}) {
+    if (!chart || !Array.isArray(chart.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
+    const lines = [
+      "SOURCE=tuvi111 deterministic engine; AI_SCOPE=summary_only",
+      `HEAVEN=${clip(chart.heaven || {}, 700)}`,
+      "PALACES:",
+    ];
+
+    for (const palace of chart.palaces) {
+      const flags = [
+        palace?.is_than || palace?.than ? "THÂN" : "",
+        palace?.has_tuan ? "TUẦN" : "",
+        palace?.has_triet ? "TRIỆT" : "",
+      ].filter(Boolean).join("+");
+      const stars = (palace?.stars || []).map(compactStarToken).filter(Boolean).join(", ");
+      lines.push(
+        `- ${palace?.palace_name || "?"}@${palace?.branch_name || "?"}/${palace?.element_name || palace?.element || palace?.hanh_cung || "?"}`
+        + `${flags ? ` <${flags}>` : ""}: ${clip(stars || "không có danh sách sao", 260)}`
+      );
+    }
+
+    lines.push(`BAZI=${clip(chart.bazi || {}, 1800)}`);
+    if (chart.relations || chart.palace_relations) {
+      lines.push(`RELATIONS=${clip(chart.relations || chart.palace_relations, 800)}`);
+    }
+    if (chart.combined_analysis) lines.push(`COMBINED=${clip(chart.combined_analysis, 700)}`);
+    if (options.includeAnnual && chart.annual) lines.push(`ANNUAL=${clip(chart.annual, 700)}`);
+    return lines.join("\n");
+  }
+
   const SYSTEM_RULES = `
 ### VAI TRÒ — HIEP TUVI AI / SUMMARY_ONLY
 Bạn chỉ làm nhiệm vụ KẾT LUẬN, ĐỐI CHIẾU và TỔNG KẾT cuối cùng.
@@ -80,50 +128,49 @@ BẮT BUỘC:
 - Viết tiếng Việt, rõ, cụ thể, có ví dụ thực tế, tránh văn vẻ và tránh Barnum.
 `;
 
+  function summaryTask(subjectKind, compact = false) {
+    return `
+### NHIỆM VỤ DUY NHẤT: KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ
+Không lặp lại từng cung theo thứ tự. Đọc evidence rồi chọn các cấu trúc có sức giải thích mạnh nhất.
+
+CẤU TRÚC BẮT BUỘC:
+1. **Kết luận tổng quát** — nêu lõi mạnh nhất và điều kiện biểu hiện tốt/xấu.
+2. **Các trục quyết định** — Mệnh–Tài–Quan, Mệnh–Di, Mệnh–Thân; chỉ thêm trục khác khi thật sự đổi kết luận.
+3. **Tứ Hóa + Tuần/Triệt + Tràng Sinh** — chỉ nêu điểm có sức cấu trúc.
+4. **Đối chiếu Tử Vi ↔ Bát Tự ↔ Ngũ Hành** — đồng thuận, bất đồng và dependency chung.
+5. **Điểm mạnh / điểm dễ lệch** — có cơ chế và ví dụ thực tế.
+6. **Ứng dụng thực tế** — học tập/năng lực, môi trường công việc, khả năng tạo giá trị, quan hệ, thói quen sức khỏe; không chẩn đoán.
+7. **Phản biện (Red-team)** — ít nhất 3 phản biện mạnh; nếu đúng phải hạ/sửa kết luận.
+8. **3–5 góc nhìn dễ bỏ sót** — chỉ chọn góc có khả năng đổi cách ứng xử/quyết định.
+9. **Kết luận cuối** — lõi mạnh nhất, rủi ro lớn nhất, chìa khóa phát triển.
+
+${subjectKind === "child" ? `CHỦ THỂ LÀ TRẺ EM: ưu tiên khí chất, học tập, tự điều tiết, môi trường và cách cha mẹ hỗ trợ; không dự đoán cứng nghề nghiệp, hôn nhân, tài chính hoặc bệnh tật tương lai; thêm gợi ý nuôi dạy thực tế.` : ""}
+
+${compact ? "Độ dài mục tiêu 700–1.200 từ. Ưu tiên kết luận giàu thông tin, không kéo dài bằng liệt kê sao." : "Độ dài mục tiêu khoảng 2.500–5.000 từ nếu dữ liệu đủ. Không kéo dài bằng cách lặp lại danh sách sao."}
+`;
+  }
+
   function buildSummaryPrompt(chart, options = {}) {
     const evidence = buildEvidencePackage(chart || getChartFromRuntime());
     const localSummary = options.localSummary || null;
     const subjectKind = options.subjectKind || "unknown";
-
-    return `${SYSTEM_RULES}
-
-### NHIỆM VỤ DUY NHẤT: KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ
-Không lặp lại từng cung theo thứ tự. Hãy đọc toàn bộ evidence rồi tổng hợp các cấu trúc có sức giải thích mạnh nhất.
-
-CẤU TRÚC ĐẦU RA BẮT BUỘC:
-1. **Kết luận tổng quát** — 4–8 đoạn, nêu lõi mạnh nhất của toàn lá số và điều kiện để nó biểu hiện tốt/xấu.
-2. **Các trục quyết định** — tối thiểu Mệnh–Tài–Quan, Mệnh–Di, cung có Thân; thêm Phúc–Di–Phu hoặc Điền–Tật–Huynh khi thật sự làm đổi kết luận.
-3. **Tứ Hóa + Tuần/Triệt + Tràng Sinh** — chỉ nêu các điểm có sức cấu trúc, không kể danh sách cơ học.
-4. **Đối chiếu Tử Vi ↔ Bát Tự ↔ Ngũ Hành** — tách điểm đồng thuận, điểm phụ thuộc chung và điểm bất đồng. Không ép hai hệ đồng thuận.
-5. **Điểm mạnh / điểm dễ lệch** — mỗi nhóm 3–6 ý, có cơ chế chứ không chỉ nhãn tính cách.
-6. **Ứng dụng thực tế** — học tập/năng lực, công việc theo kiểu môi trường phù hợp, khả năng tạo giá trị/tài nguyên, quan hệ và thói quen sức khỏe; không chẩn đoán.
-7. **Red-team** — ít nhất 3 phản biện mạnh nhất đối với chính bản tổng kết. Nếu phản biện đúng phải hạ hoặc sửa kết luận.
-8. **3–5 góc nhìn dễ bỏ sót** — chỉ chọn góc có khả năng đổi cách ứng xử/quyết định.
-9. **Kết luận cuối** — 1 đoạn trả lời rõ: lõi mạnh nhất là gì, rủi ro lớn nhất là gì, chìa khóa phát triển là gì.
-
-Nếu subject_kind là child hoặc dữ liệu cho thấy chủ thể còn nhỏ tuổi:
-- ưu tiên khí chất, học tập, tự điều tiết, môi trường và cách cha mẹ hỗ trợ;
-- không dự đoán cứng nghề nghiệp, hôn nhân, tài chính hoặc bệnh tật tương lai;
-- thêm 5–10 gợi ý nuôi dạy/hoạt động thực tế và 3 điều nên tránh.
-
-Độ dài mục tiêu: khoảng 2.500–5.000 từ nếu dữ liệu đủ. Không kéo dài bằng cách lặp lại danh sách sao.
-
-### SUBJECT_KIND
-${subjectKind}
-
-### TÓM TẮT CỤC BỘ (nếu có)
-${localSummary ? JSON.stringify(localSummary, null, 2) : "Không có; dùng evidence engine bên dưới."}
-
-### EVIDENCE PACKAGE TỪ TUVI111 — KHÔNG ĐƯỢC TỰ Ý SỬA
-${JSON.stringify(evidence, null, 2)}
-`;
+    return `${SYSTEM_RULES}\n${summaryTask(subjectKind, false)}\n### TÓM TẮT CỤC BỘ (nếu có)\n${localSummary ? JSON.stringify(localSummary, null, 2) : "Không có."}\n\n### EVIDENCE PACKAGE TỪ TUVI111 — KHÔNG ĐƯỢC TỰ Ý SỬA\n${JSON.stringify(evidence, null, 2)}`;
   }
 
-  function validateSummary(text) {
+  function buildBrowserSummaryPrompt(chart, options = {}) {
+    const effectiveChart = chart || getChartFromRuntime();
+    const subjectKind = options.subjectKind || "unknown";
+    const localSummary = options.localSummary ? clip(options.localSummary, 1400) : "Không có.";
+    const compactEvidence = buildCompactEvidenceText(effectiveChart, { includeAnnual: Boolean(options.includeAnnual) });
+    return `${SYSTEM_RULES}\n${summaryTask(subjectKind, true)}\n### TÓM TẮT CỤC BỘ\n${localSummary}\n\n### EVIDENCE NÉN TỪ TUVI111 — FACT/CALC KHÓA\n${compactEvidence}`;
+  }
+
+  function validateSummary(text, options = {}) {
     const value = String(text || "").trim();
     const normalized = normalize(value);
     const issues = [];
-    if (value.length < 3500) issues.push(`Kết luận quá ngắn (${value.length} ký tự, cần >= 3500).`);
+    const minLength = Math.max(1200, Number(options.minLength || 3500));
+    if (value.length < minLength) issues.push(`Kết luận quá ngắn (${value.length} ký tự, cần >= ${minLength}).`);
     if (!normalized.includes("ket luan tong quat") && !normalized.includes("tong quan")) issues.push("Thiếu mục/trục: Kết luận tổng quát.");
     if (!(normalized.includes("menh") && normalized.includes("tai") && normalized.includes("quan"))) issues.push("Thiếu trục: Mệnh–Tài–Quan.");
     if (!normalized.includes("menh") || !normalized.includes("di")) issues.push("Thiếu trục: Mệnh–Di.");
@@ -134,17 +181,9 @@ ${JSON.stringify(evidence, null, 2)}
     return issues;
   }
 
-  function buildRepairPrompt(originalPrompt, priorText, issues) {
-    return `${originalPrompt}
-
-### QUALITY GATE — VIẾT LẠI TOÀN BỘ PHẦN KẾT LUẬN
-Bản trước chưa đạt vì:
-- ${issues.join("\n- ")}
-
-BẢN TRƯỚC CHỈ ĐỂ NHẬN BIẾT LỖI, KHÔNG ĐƯỢC SAO CHÉP MÁY MÓC:
-${String(priorText || "").slice(0, 24000)}
-
-Hãy viết lại toàn bộ từ đầu, giữ nguyên FACT/CALC của tuvi111, chỉ làm kết luận/tổng kết, không quay lại viết 12 cung riêng.`;
+  function buildRepairPrompt(originalPrompt, priorText, issues, options = {}) {
+    const priorLimit = Math.max(3000, Number(options.priorLimit || 24000));
+    return `${originalPrompt}\n\n### QUALITY GATE — VIẾT LẠI TOÀN BỘ PHẦN KẾT LUẬN\nBản trước chưa đạt vì:\n- ${issues.join("\n- ")}\n\nBẢN TRƯỚC CHỈ ĐỂ NHẬN BIẾT LỖI, KHÔNG ĐƯỢC SAO CHÉP MÁY MÓC:\n${String(priorText || "").slice(0, priorLimit)}\n\nHãy viết lại toàn bộ từ đầu, giữ nguyên FACT/CALC của tuvi111, chỉ làm kết luận/tổng kết, không quay lại viết 12 cung riêng.`;
   }
 
   const api = Object.freeze({
@@ -152,7 +191,9 @@ Hãy viết lại toàn bộ từ đầu, giữ nguyên FACT/CALC của tuvi111,
     PROFILE,
     normalize,
     buildEvidencePackage,
+    buildCompactEvidenceText,
     buildSummaryPrompt,
+    buildBrowserSummaryPrompt,
     validateSummary,
     buildRepairPrompt,
   });
