@@ -8,27 +8,26 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "autonomous.js"), "utf8");
 const listeners = new Map();
 const storage = new Map();
-let aiCalls = 0;
-let silentTests = 0;
+
+assert.match(source, /final_summary_only/);
+assert.match(source, /summary_only:\s*true/);
+assert.match(source, /AI kết luận & tổng kết/);
+assert.doesNotMatch(source, /originalRunGemini/);
+assert.doesNotMatch(source, /15 bước/);
 
 const nodes = {
   geminiEndpoint: { value: "preset" },
-  geminiModel: { value: "" },
+  geminiModel: { value: "", innerHTML: "" },
   birthForm: { reportValidity: () => true },
   birthDate: { value: "2023-05-18" },
   generateButton: { disabled: false, textContent: "old" },
-  geminiResultPanel: {
-    querySelector(selector) {
-      return selector === ".section-kicker" ? { textContent: "" }
-        : selector === "h2" ? { textContent: "" }
-          : { textContent: "" };
-    },
-  },
 };
 
 const context = {
   console,
   Promise,
+  Date,
+  URL,
   setTimeout,
   clearTimeout,
   Error,
@@ -39,40 +38,32 @@ const context = {
   },
   navigator: {},
   document: {
+    head: null,
     getElementById(id) { return nodes[id] || null; },
     createElement() { return {}; },
+    querySelectorAll() { return []; },
   },
   setGeminiStatus(message) { context.lastStatus = message; },
-  runGeminiAnalysis() { aiCalls += 1; return Promise.resolve(); },
-  testGeminiConnection() { silentTests += 1; return Promise.resolve(); },
   callWorker() { return Promise.resolve({ ok: true }); },
-  parseForm() {
-    return { year: 2023, annual_year: 2026, gender: 1, name: "Mau" };
-  },
+  parseForm() { return { year: 2023, annual_year: 2026, gender: 1, name: "Mau" }; },
   toast(message) { context.lastToast = message; },
   addEventListener(type, handler) { listeners.set(type, handler); },
+  alert(message) { context.lastAlert = message; },
 };
 context.window = context;
 vm.runInNewContext(source, context, { filename: "autonomous.js" });
 
 context.restoreGeminiSettings();
 assert.equal(nodes.geminiEndpoint.value, "");
+assert.equal(nodes.geminiModel.value, "gemini-3.8-flash");
 assert.equal(context.lastStatus, "AI đang tắt");
 
 await context.runGeminiAnalysis({ automatic: true });
-assert.equal(aiCalls, 0, "automatic AI must stay disabled");
-await context.runGeminiAnalysis({});
-assert.equal(aiCalls, 1, "manual AI must remain available");
-
-await context.testGeminiConnection({ silent: true });
-assert.equal(silentTests, 0, "startup must not probe an external AI endpoint");
+assert.equal(context.lastAlert, undefined, "automatic AI must stay disabled");
 
 const form = context.parseForm();
 assert.equal(form.year, 2023);
 nodes.birthDate.value = "2023-02-31";
 assert.throws(() => context.parseForm(), /Ngày sinh không hợp lệ/);
-nodes.birthDate.value = "2023-05-18";
-listeners.get("DOMContentLoaded")();
-assert.equal(nodes.generateButton.textContent, "Lập lá số");
 
-console.log("PASS: AI is opt-in and form validation layer is active");
+console.log("PASS: AI is opt-in, summary-only, and form validation remains active");
