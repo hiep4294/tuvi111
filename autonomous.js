@@ -47,8 +47,22 @@
     const registration = await navigator.serviceWorker.ready;
     const worker = navigator.serviceWorker.controller || registration.active;
     if (!worker) throw new Error("Service Worker chưa sẵn sàng. Hãy tải lại trang một lần.");
-    worker.postMessage({ type: "hiep-ai-endpoint", endpoint });
-    return true;
+
+    if (typeof MessageChannel === "undefined") {
+      worker.postMessage({ type: "hiep-ai-endpoint", endpoint });
+      return true;
+    }
+
+    const acknowledged = await withTimeout(new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.ok) resolve(true);
+        else reject(new Error(data.error || "Service Worker từ chối AI endpoint."));
+      };
+      worker.postMessage({ type: "hiep-ai-endpoint", endpoint }, [channel.port2]);
+    }), 3000, "Service Worker chưa xác nhận cấu hình AI endpoint.");
+    return acknowledged;
   }
 
   function aiProxyUrl(path) {
@@ -119,7 +133,10 @@
       action === "generate"
         ? "Bộ máy tính quá 120 giây. Hãy tải lại trang và thử lại."
         : "Bộ máy không phản hồi sau 30 giây."
-    );
+    ).then((result) => {
+      if (action === "generate" && result?.chart) window.__HIEP_TUVI_CHART__ = result.chart;
+      return result;
+    });
   };
 
   window.parseForm = function parseAndValidateForm() {
