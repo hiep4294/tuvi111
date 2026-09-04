@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "test:syntax": "node --check app.js && node --check autonomous.js && node --check offline-summary.js && node --check engine-worker.js && node --check service-worker.js"
+    "test:syntax": "node --check app.js && node --check autonomous.js && node --check offline-summary.js && node --check engine-worker.js && node --check service-worker.js && node --check hiep-tuvi-ai.js && node --check browser-ai.js && node --check browser-ai-worker.js"
   }
 }
