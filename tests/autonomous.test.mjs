@@ -9,8 +9,9 @@ const source = readFileSync(join(root, "autonomous.js"), "utf8");
 const listeners = new Map();
 const storage = new Map();
 
-assert.match(source, /browser-ai\.js\?v=1\.1\.0/);
+assert.match(source, /browser-ai\.js\?v=1\.1\.1/);
 assert.match(source, /buildBrowserSummaryPrompt/);
+assert.match(source, /requestLocalWithFallback/);
 assert.match(source, /AI local kết luận & tổng kết/);
 assert.match(source, /webGpuAvailable/);
 assert.doesNotMatch(source, /originalRunGemini/);
