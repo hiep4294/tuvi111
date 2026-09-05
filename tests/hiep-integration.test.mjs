@@ -30,9 +30,10 @@ assert.doesNotMatch(autonomous, /if\s*\(options\.automatic\)\s*return/);
 
 assert.match(browserAi, /Qwen3-4B-q4f16_1-MLC/);
 assert.match(browserAi, /Qwen3-8B-q4f16_1-MLC/);
+assert.match(browserAi, /Math\.min\(1250/);
+assert.match(browserAi, /4096-token context/);
 assert.match(browserAi, /new Worker/);
 assert.match(browserAi, /type:\s*"module"/);
-assert.match(browserAi, /browser-ai-worker\.js/);
 assert.match(browserWorker, /@mlc-ai\/web-llm@0\.2\.84/);
 assert.match(browserWorker, /CreateMLCEngine/);
 assert.match(browserWorker, /cacheBackend:\s*"indexeddb"/);
@@ -43,20 +44,22 @@ assert.match(serviceWorker, /\.\/browser-ai\.js/);
 assert.match(serviceWorker, /\.\/browser-ai-worker\.js/);
 assert.match(serviceWorker, /tuvi-battu-web-v1\.20-hiep-tuvi-auto-2/);
 
+assert.match(specialist, /VERSION = "2\.1\.0"/);
 assert.match(specialist, /HIEP_TUVI_FULL_REPORT/);
-assert.match(specialist, /fullReportPlan/);
+assert.match(specialist, /palaces-6/);
 assert.match(specialist, /DATA QUALITY CARD/);
-assert.match(specialist, /Mệnh", "Phụ Mẫu", "Phúc Đức/);
 assert.match(specialist, /TỨ TRỤ BÁT TỰ \+ NGŨ HÀNH/);
 assert.match(specialist, /RED-TEAM \/ PHẢN BIỆN/);
 assert.match(specialist, /HÀNH ĐỘNG THỰC TẾ/);
 
+assert.match(knowledge, /VERSION = "1\.1\.0"/);
 assert.match(knowledge, /Tử Vi/);
 assert.match(knowledge, /Phá Quân/);
 assert.match(knowledge, /Sát Phá Tham/);
-assert.match(knowledge, /Tứ Hóa là mạng có hướng/);
-assert.match(knowledge, /Tuần\/Triệt là bộ điều biến/);
-assert.match(knowledge, /QUY TẮC BÁT TỰ HIEP TUVI/);
+assert.match(knowledge, /Tứ Hóa đọc source/);
+assert.match(knowledge, /Tuần\/Triệt là modifier/);
+assert.match(knowledge, /BÁT TỰ:/);
+assert.match(knowledge, /relevantCombos/);
 assert.doesNotMatch(specialist + knowledge, /NHIỆM VỤ BƯỚC/);
 
-console.log("PASS: local WebGPU AI automatically generates a knowledge-grounded Hiep Tuvi full report");
+console.log("PASS: local WebGPU AI automatically generates a compact, knowledge-grounded Hiep Tuvi full report");
