@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
-  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tự động luận giải đầy đủ bằng Hiep TuVi AI local WebGPU ngay trên thiết bị.">
+  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tạo báo cáo Hiep TuVi đầy đủ cục bộ; AI WebGPU là lớp nâng cấp tùy chọn.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <title>Tử Vi + Bát Tự — Web v1.21 Hiep TuVi KB V2</title>
+  <title>Tử Vi + Bát Tự — Web v1.22 Hiep TuVi Local Full</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=1.21">
-  <link rel="stylesheet" href="styles-autonomous.css?v=1.21">
+  <link rel="stylesheet" href="styles.css?v=1.22">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.22">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">WEB v1.21 · TUVI111 FACT/CALC · HIEP TUVI KB V2 · AI AUTO</div>
+      <div class="eyebrow">WEB v1.22 · TUVI111 FACT/CALC · HIEP TUVI LOCAL FULL · AI OPTIONAL</div>
       <h1>Tử Vi + Bát Tự</h1>
-      <p>Tuvi111 tự tính lá số/Bát Tự · Knowledge Base V2 cấp rule theo đúng sao/cung · Hiep TuVi AI local tự luận giải trên WebGPU.</p>
+      <p>Tuvi111 tự tính lá số/Bát Tự · Knowledge Base V2 tự viết báo cáo chi tiết đủ 12 cung ngay trên máy · AI WebGPU chỉ là lớp nâng cấp thêm khi GPU tương thích.</p>
     </div>
     <div class="engine-state" id="engineState" aria-live="polite">
       <span class="state-dot"></span>
@@ -82,7 +82,7 @@
         <div class="progress-track"><div id="progressBar"></div></div>
         <small id="progressText">Đang tải bộ máy lần đầu...</small>
       </div>
-      <p class="privacy-note">Lá số và Knowledge Base V2 nằm trong ứng dụng. Sau khi lập xong, AI local tự lấy đúng rule liên quan và viết báo cáo; lần đầu cần tải model, các lần sau dùng cache trình duyệt.</p>
+      <p class="privacy-note">Báo cáo 12 cung + Bát Tự + phản biện được tạo cục bộ bằng rule engine và luôn có ngay cả khi WebGPU/model không chạy được. AI local chỉ dùng để viết lại sâu hơn khi thiết bị tương thích.</p>
     </aside>
 
     <section class="workspace">
@@ -121,17 +121,17 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">TUVI111 FACT/CALC · KB V2 · LOCAL WEBGPU · AUTO</span>
-                  <h2>Hiep TuVi AI — tự luận giải đầy đủ</h2>
+                  <span class="section-kicker">12 CUNG · BÁT TỰ · PHẢN BIỆN · KHÔNG CẦN GPU</span>
+                  <h2>Hiep TuVi — báo cáo cục bộ đầy đủ</h2>
                 </div>
-                <span class="tag">AUTO · HIEP_TUVI · KB V2</span>
+                <span class="tag">LOCAL RULES v2.2</span>
               </div>
               <div class="inline-gemini-actions">
                 <button id="runGeminiInlineButton" class="primary-button" type="button">AI luận giải lại</button>
-                <span class="muted">Sau khi lập lá số, AI tự chạy: Data Quality → đủ 12 cung → Bát Tự → Ngũ Hành → đối chiếu → phản biện → tổng kết → hành động.</span>
+                <span class="muted">Báo cáo cục bộ đầy đủ luôn được tạo trước. Nếu WebGPU tương thích, nút AI sẽ viết lại sâu hơn theo cùng Knowledge Base.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Lập lá số xong AI sẽ tự bắt đầu. Knowledge Base V2 chỉ cấp rule phù hợp với dữ liệu thật của lá số; bản quy tắc cục bộ vẫn là dự phòng nếu WebGPU/model không chạy được.</p>
+                <p class="muted">Lập lá số xong sẽ có ngay đủ 12 cung theo kiểu Hiep TuVi; không cần chờ AI WebGPU.</p>
               </div>
             </section>
 
@@ -188,10 +188,10 @@
         <section class="card gemini-panel">
           <div class="gemini-heading">
             <div>
-              <span class="section-kicker">AI CHẠY TRÊN THIẾT BỊ · KNOWLEDGE BASE V2</span>
-              <h2>Hiep TuVi AI — AUTO FULL REPORT</h2>
+              <span class="section-kicker">AI WEBGPU · TÙY CHỌN NÂNG CẤP</span>
+              <h2>Hiep TuVi AI — viết lại sâu hơn</h2>
             </div>
-            <span id="geminiStatus" class="tag">AI tự động · chưa kiểm tra</span>
+            <span id="geminiStatus" class="tag">AI chưa kiểm tra</span>
           </div>
 
           <div class="gemini-settings">
@@ -217,7 +217,7 @@
           </div>
 
           <div class="ai-result-location-note">
-            tuvi111 khóa dữ liệu an sao/Bát Tự. Knowledge Base V2 cấp rule có SCHOOL + provenance + confidence; AI chỉ diễn giải và phản biện trên WebGPU của thiết bị.
+            Tuvi111 và Local Rules v2.2 đã bảo đảm báo cáo đầy đủ. AI WebGPU chỉ viết lại/đào sâu; nếu shader không tương thích thì phần mềm giữ nguyên báo cáo local, không giảm nội dung.
           </div>
         </section>
       </section>
@@ -234,18 +234,21 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.21 · Tuvi111 deterministic · Hiep TuVi Knowledge Base V2 · WebGPU AUTO FULL REPORT.</p>
+    <p>Web v1.22 · Tuvi111 deterministic · Hiep TuVi Local Rules v2.2 · WebGPU AI optional.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="knowledge/stars.js?v=2.0.0" defer></script>
+  <script src="knowledge/minor-stars.js?v=2.2.0" defer></script>
+  <script src="knowledge/all-stars.js?v=2.2.0" defer></script>
   <script src="knowledge/palaces.js?v=2.0.0" defer></script>
   <script src="knowledge/combinations.js?v=2.0.0" defer></script>
   <script src="knowledge/structures.js?v=2.0.0" defer></script>
   <script src="knowledge/bazi.js?v=2.0.0" defer></script>
   <script src="knowledge/schools.js?v=2.0.0" defer></script>
-  <script src="app.js?v=1.21" defer></script>
-  <script src="autonomous.js?v=1.21" defer></script>
-  <script src="offline-summary.js?v=1.21" defer></script>
+  <script src="app.js?v=1.22" defer></script>
+  <script src="autonomous.js?v=1.22" defer></script>
+  <script src="webgpu-failure-guard.js?v=1.22" defer></script>
+  <script src="offline-summary.js?v=2.2.0" defer></script>
 </body>
 </html>
