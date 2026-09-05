@@ -226,7 +226,7 @@ Bắt buộc: không “một sao = một kết luận”; không trộn nguyên
 ### PHẦN: ${job.label}
 Chỉ viết đúng ${job.palaces.length} cung theo thứ tự: ${job.palaces.join(" → ")}. ${job.includeDataQuality ? "Trước cung đầu, viết **DATA QUALITY CARD** ngắn: dữ liệu có/thiếu, giả định, DQ 0–100 chỉ phản ánh độ đầy đủ." : "Không lặp Data Quality."} Không viết Bát Tự/red-team/tổng kết toàn lá số ở phần này.
 
-MỖI CUNG dùng `## CUNG X`, khoảng 250–350 từ nếu evidence đủ, đi qua:
+MỖI CUNG dùng tiêu đề ## CUNG X, khoảng 250–350 từ nếu evidence đủ, đi qua:
 - Nền cung: địa chi, Ngũ Hành, Mệnh–Thân.
 - Chính tinh + phụ tinh: nêu tên các sao nguyên cục trong dòng STARS; phân tích theo nhóm, không bỏ chính tinh/Hóa/Tràng Sinh/Tuần-Triệt.
 - Ngũ Hành cung↔sao↔Mệnh; bộ sao/cách cục complete|partial|broken.
