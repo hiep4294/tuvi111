@@ -1,8 +1,12 @@
 "use strict";
 
 (function initHiepTuViAI(root) {
-  const VERSION = "1.2.0";
-  const PROFILE = "SUMMARY_ONLY";
+  const VERSION = "2.1.0";
+  const PROFILE = "HIEP_TUVI_FULL_REPORT";
+  const PALACE_ORDER = Object.freeze([
+    "Mệnh", "Phụ Mẫu", "Phúc Đức", "Điền Trạch", "Quan Lộc", "Nô Bộc",
+    "Thiên Di", "Tật Ách", "Tài Bạch", "Tử Tức", "Phu Thê", "Huynh Đệ",
+  ]);
 
   function normalize(value) {
     return String(value || "")
@@ -18,7 +22,7 @@
 
   function getChartFromRuntime() {
     try {
-      if (typeof state !== "undefined" && state && state.chart) return state.chart;
+      if (typeof state !== "undefined" && state?.chart) return state.chart;
     } catch (_) {}
     return root?.__HIEP_TUVI_CHART__ || null;
   }
@@ -31,12 +35,16 @@
       catch (_) { text = String(value ?? ""); }
     }
     if (text.length <= maxChars) return text;
-    return `${text.slice(0, Math.max(0, maxChars - 20))}...[đã rút gọn]`;
+    return `${text.slice(0, Math.max(0, maxChars - 18))}...[rút gọn]`;
+  }
+
+  function starName(star) {
+    return String(star?.saoTen || star?.name || star?.label || "").trim();
   }
 
   function compactStar(star) {
     return {
-      name: String(star?.saoTen || star?.name || "").trim(),
+      name: starName(star),
       dignity: String(star?.saoDacTinh || star?.dignity || "").trim() || null,
       nature: String(star?.nature || "").trim() || null,
       element: String(star?.element_name || star?.element || "").trim() || null,
@@ -44,154 +52,307 @@
   }
 
   function compactStarToken(star) {
-    const data = compactStar(star);
-    if (!data.name) return "";
-    const tags = [data.dignity, data.element].filter(Boolean);
-    return tags.length ? `${data.name}[${tags.join("/")}]` : data.name;
+    const item = compactStar(star);
+    if (!item.name) return "";
+    const tags = [item.dignity, item.element, item.nature].filter(Boolean);
+    return tags.length ? `${item.name}[${tags.join("/")}]` : item.name;
   }
 
-  function compactPalace(palace) {
+  function findPalace(chart, name) {
+    const target = normalize(name);
+    return (chart?.palaces || []).find((palace) => normalize(palace?.palace_name) === target) || null;
+  }
+
+  function palaceFlags(palace) {
+    return [
+      palace?.is_than || palace?.is_body || palace?.than ? "THÂN" : "",
+      palace?.has_tuan ? "TUẦN" : "",
+      palace?.has_triet ? "TRIỆT" : "",
+    ].filter(Boolean).join("+") || "-";
+  }
+
+  function palaceLine(palace, maxStarChars = 620) {
+    if (!palace) return "PALACE=MISSING";
+    const stars = (palace?.stars || []).map(compactStarToken).filter(Boolean).join(", ");
+    return `${palace.palace_name}@${palace.branch_name || "?"}/${palace.element_name || palace.element || palace.hanh_cung || "?"};FLAGS=${palaceFlags(palace)};STARS=${clip(stars || "-", maxStarChars)}`;
+  }
+
+  function detailsNames(items) {
+    if (!Array.isArray(items)) return "-";
+    const names = items.map((item) => starName(item)).filter(Boolean);
+    return names.length ? names.join(",") : "-";
+  }
+
+  function relationNodeToken(node) {
+    if (!node) return "-";
+    const flags = [node.tuan ? "TUẦN" : "", node.triet ? "TRIỆT" : ""].filter(Boolean).join("+") || "-";
+    return `${node.palace || "?"}@${node.branch || "?"}{M:${detailsNames(node.major_star_details)};G:${detailsNames(node.good_star_details)};B:${detailsNames(node.bad_star_details)};H:${detailsNames(node.transformation_details)};TS:${starName(node.trang_sinh_detail) || "-"};F:${flags}}`;
+  }
+
+  function relationLine(chart, palace) {
+    if (!palace) return "REL=-";
+    const rel = chart?.relations?.[String(palace.branch_id)] || chart?.palace_relations?.[String(palace.branch_id)] || null;
+    if (!rel) return "REL=-";
+    const trine = (rel.trine || []).map(relationNodeToken).join(" | ") || "-";
+    const adjacent = (rel.adjacent || []).map(relationNodeToken).join(" | ") || "-";
+    return `REL ${palace.palace_name}: SELF=${relationNodeToken(rel.self)} || OPP=${relationNodeToken(rel.opposite)} || TRI=${trine} || ADJ=${adjacent} || NHI=${relationNodeToken(rel.six_harmony)}`;
+  }
+
+  function heavenCore(chart) {
+    const h = chart?.heaven || {};
     return {
-      palace: palace?.palace_name || null,
-      branch: palace?.branch_name || null,
-      element: palace?.element_name || palace?.element || palace?.hanh_cung || null,
-      has_tuan: Boolean(palace?.has_tuan),
-      has_triet: Boolean(palace?.has_triet),
-      is_than: Boolean(palace?.is_than || palace?.than),
-      stars: (palace?.stars || []).map(compactStar),
-      annual_stars: (palace?.annual_stars || []).map(compactStar),
+      gender: h.gender || null,
+      input_time: h.input_time || null,
+      lunar_date: h.chart_lunar_date || null,
+      year: h.year_can_chi || null,
+      month: h.month_can_chi || null,
+      day: h.day_can_chi || null,
+      hour: h.hour_can_chi || null,
+      ban_menh: h.ban_menh || null,
+      cuc: h.cuc || null,
+      menh_cuc: h.menh_cuc_relation || null,
+      than_cu: h.than_cu || h.than_palace || null,
+      menh_chu: h.menh_chu || null,
+      than_chu: h.than_chu || null,
+      am_duong: h.am_duong_menh || null,
     };
   }
 
   function buildEvidencePackage(chart) {
-    if (!chart || !Array.isArray(chart.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
+    const effective = chart || getChartFromRuntime();
+    if (!effective || !Array.isArray(effective.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
     return {
       source: "tuvi111 deterministic engine",
-      ai_scope: "summary_and_conclusion_only",
-      heaven: chart.heaven || {},
-      palaces: chart.palaces.map(compactPalace),
-      bazi: chart.bazi || {},
-      annual: chart.annual || {},
-      relations: chart.relations || chart.palace_relations || null,
-      combined_analysis: chart.combined_analysis || null,
-      metadata: {
-        chart_id: chart.chart_id || null,
-        engine_version: chart.version || chart.engine_version || null,
-      },
+      ai_scope: "interpret_locked_facts_only",
+      heaven: effective.heaven || {},
+      palaces: effective.palaces.map((palace) => ({
+        palace: palace?.palace_name || null,
+        branch: palace?.branch_name || null,
+        branch_id: Number(palace?.branch_id || 0) || null,
+        element: palace?.element_name || palace?.element || palace?.hanh_cung || null,
+        has_tuan: Boolean(palace?.has_tuan),
+        has_triet: Boolean(palace?.has_triet),
+        is_than: Boolean(palace?.is_than || palace?.is_body || palace?.than),
+        stars: (palace?.stars || []).map(compactStar),
+      })),
+      bazi: effective.bazi || {},
+      annual: effective.annual || {},
+      relations: effective.relations || effective.palace_relations || null,
+      combined_analysis: effective.combined_analysis || null,
+      metadata: { chart_id: effective.chart_id || null, engine_version: effective.version || effective.engine_version || null },
     };
   }
 
+  function compactSynthesisPalaceLine(palace) {
+    if (!palace) return "";
+    const main = (palace.stars || []).filter((s) => s?.nature === "main").map(compactStarToken).filter(Boolean);
+    const transformations = (palace.stars || []).filter((s) => /^Hóa /i.test(starName(s)) || s?.nature === "transformation").map(compactStarToken).filter(Boolean);
+    const ts = (palace.stars || []).find((s) => s?.nature === "trang_sinh");
+    return `${palace.palace_name}@${palace.branch_name || "?"};F=${palaceFlags(palace)};MAIN=${main.join(",") || "-"};HÓA=${transformations.join(",") || "-"};TS=${starName(ts) || "-"}`;
+  }
+
   function buildCompactEvidenceText(chart, options = {}) {
-    if (!chart || !Array.isArray(chart.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
+    const effective = chart || getChartFromRuntime();
+    if (!effective || !Array.isArray(effective.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
     const lines = [
-      "SOURCE=tuvi111 deterministic engine; AI_SCOPE=summary_only",
-      `HEAVEN=${clip(chart.heaven || {}, 700)}`,
+      "SOURCE=tuvi111;FACT/CALC=LOCKED",
+      `HEAVEN=${clip(heavenCore(effective), 650)}`,
       "PALACES:",
+      ...PALACE_ORDER.map((name) => compactSynthesisPalaceLine(findPalace(effective, name))).filter(Boolean),
     ];
-
-    for (const palace of chart.palaces) {
-      const flags = [
-        palace?.is_than || palace?.than ? "THÂN" : "",
-        palace?.has_tuan ? "TUẦN" : "",
-        palace?.has_triet ? "TRIỆT" : "",
-      ].filter(Boolean).join("+");
-      const stars = (palace?.stars || []).map(compactStarToken).filter(Boolean).join(", ");
-      lines.push(
-        `- ${palace?.palace_name || "?"}@${palace?.branch_name || "?"}/${palace?.element_name || palace?.element || palace?.hanh_cung || "?"}`
-        + `${flags ? ` <${flags}>` : ""}: ${clip(stars || "không có danh sách sao", 260)}`
-      );
-    }
-
-    lines.push(`BAZI=${clip(chart.bazi || {}, 1800)}`);
-    if (chart.relations || chart.palace_relations) {
-      lines.push(`RELATIONS=${clip(chart.relations || chart.palace_relations, 800)}`);
-    }
-    if (chart.combined_analysis) lines.push(`COMBINED=${clip(chart.combined_analysis, 700)}`);
-    if (options.includeAnnual && chart.annual) lines.push(`ANNUAL=${clip(chart.annual, 700)}`);
+    if (options.includeBazi !== false) lines.push(`BAZI=${clip(baziEvidence(effective), 1500)}`);
+    if (effective.combined_analysis) lines.push(`CROSS=${clip(effective.combined_analysis?.cross_system_signals || effective.combined_analysis, 700)}`);
+    if (options.includeAnnual && effective.annual) lines.push(`ANNUAL=${clip(effective.annual, 500)}`);
     return lines.join("\n");
   }
 
-  const SYSTEM_RULES = `
-### VAI TRÒ — HIEP TUVI AI / SUMMARY_ONLY
-Bạn chỉ làm nhiệm vụ KẾT LUẬN, ĐỐI CHIẾU và TỔNG KẾT cuối cùng.
-
-Toàn bộ an sao, 12 cung, Can Chi, Cục, Tứ Hóa, Tuần/Triệt, Tràng Sinh, Bát Tự, đại vận/lưu niên và quan hệ cung đã được engine tuvi111 tính trước. Đây là FACT/CALC đã khóa.
-
-BẮT BUỘC:
-- Không tự an lại sao, không đổi vị trí cung, không sửa Can Chi/Cục/Tứ Hóa/Tràng Sinh.
-- Không viết lại 12 bài luận cung riêng; phần chi tiết đã được hệ thống cục bộ xử lý.
-- Không dùng “một sao = một kết luận”. Chỉ tổng hợp cấu trúc lặp lại qua nhiều cung/hệ.
-- Tách nguyên cục với đại vận/lưu niên; không dùng lưu tinh để sửa ngược nguyên cục.
-- Tử Vi/Bát Tự là hệ diễn giải truyền thống, không trình bày như khoa học thực nghiệm.
-- Không khẳng định chắc chắn tử vong, bệnh nặng, tai họa, phá sản, ngoại tình hoặc phạm tội.
-- Nếu dữ liệu mâu thuẫn hoặc thiếu, ghi rõ thay vì tự bịa để lấp chỗ trống.
-- Viết tiếng Việt, rõ, cụ thể, có ví dụ thực tế, tránh văn vẻ và tránh Barnum.
+  const LOCKED_RULES = `
+### HIEP TUVI AI — FACT/CALC KHÓA
+Engine tuvi111 đã tính cung, sao, Can Chi, Cục, Mệnh/Thân, Tứ Hóa, Tuần/Triệt, Tràng Sinh, Bát Tự và quan hệ cung. Chỉ DIỄN GIẢI; không tự an/sửa/bịa dữ kiện.
+Bắt buộc: không “một sao = một kết luận”; không trộn nguyên cục với lưu niên; formation phải complete/partial/broken hoặc ghi chưa đủ; rule khác trường phái thì ghi SCHOOL/hạ confidence; Tử Vi/Bát Tự là hệ truyền thống, không phải khoa học thực nghiệm; không phán chắc tử vong, bệnh nặng, tai họa, phá sản, ngoại tình, phạm tội. Viết tiếng Việt rõ, có cơ chế và ví dụ thực tế.
 `;
 
-  function summaryTask(subjectKind, compact = false) {
-    return `
-### NHIỆM VỤ DUY NHẤT: KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ
-Không lặp lại từng cung theo thứ tự. Đọc evidence rồi chọn các cấu trúc có sức giải thích mạnh nhất.
-
-CẤU TRÚC BẮT BUỘC:
-1. **Kết luận tổng quát** — nêu lõi mạnh nhất và điều kiện biểu hiện tốt/xấu.
-2. **Các trục quyết định** — Mệnh–Tài–Quan, Mệnh–Di, Mệnh–Thân; chỉ thêm trục khác khi thật sự đổi kết luận.
-3. **Tứ Hóa + Tuần/Triệt + Tràng Sinh** — chỉ nêu điểm có sức cấu trúc.
-4. **Đối chiếu Tử Vi ↔ Bát Tự ↔ Ngũ Hành** — đồng thuận, bất đồng và dependency chung.
-5. **Điểm mạnh / điểm dễ lệch** — có cơ chế và ví dụ thực tế.
-6. **Ứng dụng thực tế** — học tập/năng lực, môi trường công việc, khả năng tạo giá trị, quan hệ, thói quen sức khỏe; không chẩn đoán.
-7. **Phản biện (Red-team)** — ít nhất 3 phản biện mạnh; nếu đúng phải hạ/sửa kết luận.
-8. **3–5 góc nhìn dễ bỏ sót** — chỉ chọn góc có khả năng đổi cách ứng xử/quyết định.
-9. **Kết luận cuối** — lõi mạnh nhất, rủi ro lớn nhất, chìa khóa phát triển.
-
-${subjectKind === "child" ? `CHỦ THỂ LÀ TRẺ EM: ưu tiên khí chất, học tập, tự điều tiết, môi trường và cách cha mẹ hỗ trợ; không dự đoán cứng nghề nghiệp, hôn nhân, tài chính hoặc bệnh tật tương lai; thêm gợi ý nuôi dạy thực tế.` : ""}
-
-${compact ? "Độ dài mục tiêu 700–1.200 từ. Ưu tiên kết luận giàu thông tin, không kéo dài bằng liệt kê sao." : "Độ dài mục tiêu khoảng 2.500–5.000 từ nếu dữ liệu đủ. Không kéo dài bằng cách lặp lại danh sách sao."}
-`;
+  function subjectRules(subjectKind) {
+    if (subjectKind !== "child") return "";
+    return `CHỦ THỂ TRẺ EM: chuyển biểu tượng người lớn thành khí chất/học tập/tự điều tiết/môi trường/cách cha mẹ hỗ trợ; không dự đoán cứng nghề, hôn nhân, tài chính, bệnh tật; phần hành động cuối có 5–10 gợi ý và 3 điều nên tránh.\n`;
   }
 
-  function buildSummaryPrompt(chart, options = {}) {
-    const evidence = buildEvidencePackage(chart || getChartFromRuntime());
-    const localSummary = options.localSummary || null;
+  function dataQualityEvidence(chart) {
+    const h = chart?.heaven || {};
+    return `thời_gian=${h.input_time || "?"}; âm_lịch=${h.chart_lunar_date || "?"}; giới_tính=${h.gender || "?"}; quy_tắc_giờ=${h.time_rule || "?"}; nơi_sinh=không có trong chart; ảnh=không dùng; quẻ=không có`;
+  }
+
+  function palaceBatchEvidenceText(chart, palaceNames) {
+    const lines = [`HEAVEN=${clip(heavenCore(chart), 650)}`];
+    for (const name of palaceNames || []) {
+      const palace = findPalace(chart, name);
+      lines.push(palaceLine(palace));
+      lines.push(clip(relationLine(chart, palace), 1450));
+    }
+    return lines.join("\n");
+  }
+
+  function baziEvidence(chart) {
+    const b = chart?.bazi || {};
+    return {
+      pillars: b.pillars || null,
+      day_master: b.day_master || null,
+      month_method: b.month_method_name || null,
+      month_basis: b.month_basis_label || null,
+      element_balance: b.element_balance || null,
+      interactions: b.interactions || b.branch_interactions || b.stem_interactions || null,
+      ten_gods: b.ten_gods || b.ten_god_summary || null,
+      luck_cycles: b.luck_cycles || null,
+    };
+  }
+
+  function fullReportPlan() {
+    return [
+      { id: "palaces-1", kind: "palaces", label: "Data Quality + Mệnh–Phụ Mẫu", palaces: ["Mệnh", "Phụ Mẫu"], includeDataQuality: true },
+      { id: "palaces-2", kind: "palaces", label: "Phúc Đức–Điền Trạch", palaces: ["Phúc Đức", "Điền Trạch"] },
+      { id: "palaces-3", kind: "palaces", label: "Quan Lộc–Nô Bộc", palaces: ["Quan Lộc", "Nô Bộc"] },
+      { id: "palaces-4", kind: "palaces", label: "Thiên Di–Tật Ách", palaces: ["Thiên Di", "Tật Ách"] },
+      { id: "palaces-5", kind: "palaces", label: "Tài Bạch–Tử Tức", palaces: ["Tài Bạch", "Tử Tức"] },
+      { id: "palaces-6", kind: "palaces", label: "Phu Thê–Huynh Đệ", palaces: ["Phu Thê", "Huynh Đệ"] },
+      { id: "bazi", kind: "bazi", label: "Tứ Trụ Bát Tự + Ngũ Hành" },
+      { id: "synthesis", kind: "synthesis", label: "Đối chiếu + phản biện + tổng kết" },
+    ];
+  }
+
+  function buildPalaceSectionPrompt(chart, job, options = {}) {
     const subjectKind = options.subjectKind || "unknown";
-    return `${SYSTEM_RULES}\n${summaryTask(subjectKind, false)}\n### TÓM TẮT CỤC BỘ (nếu có)\n${localSummary ? JSON.stringify(localSummary, null, 2) : "Không có."}\n\n### EVIDENCE PACKAGE TỪ TUVI111 — KHÔNG ĐƯỢC TỰ Ý SỬA\n${JSON.stringify(evidence, null, 2)}`;
+    const dq = job.includeDataQuality ? `\nDATA QUALITY INPUT: ${dataQualityEvidence(chart)}\n` : "";
+    return `${LOCKED_RULES}${subjectRules(subjectKind)}
+### PHẦN: ${job.label}
+Chỉ viết đúng ${job.palaces.length} cung theo thứ tự: ${job.palaces.join(" → ")}. ${job.includeDataQuality ? "Trước cung đầu, viết **DATA QUALITY CARD** ngắn: dữ liệu có/thiếu, giả định, DQ 0–100 chỉ phản ánh độ đầy đủ." : "Không lặp Data Quality."} Không viết Bát Tự/red-team/tổng kết toàn lá số ở phần này.
+
+MỖI CUNG dùng tiêu đề ## CUNG X, khoảng 250–350 từ nếu evidence đủ, đi qua:
+- Nền cung: địa chi, Ngũ Hành, Mệnh–Thân.
+- Chính tinh + phụ tinh: nêu tên các sao nguyên cục trong dòng STARS; phân tích theo nhóm, không bỏ chính tinh/Hóa/Tràng Sinh/Tuần-Triệt.
+- Ngũ Hành cung↔sao↔Mệnh; bộ sao/cách cục complete|partial|broken.
+- Tràng Sinh; tam phương tứ chính + đối cung; nhị hợp + giáp cung.
+- Tứ Hóa theo mạng nguồn→sao→cung→tác động; nếu nguồn không có trong evidence thì nói chưa đủ, không bịa.
+- Tuần/Triệt là modifier; Mệnh–Thân/cung liên đới; điểm hỗ trợ và điểm phá.
+- Kết luận cuối cung đúng mẫu: **Mạnh / Yếu / Điều kiện / Trạng thái: STRONG|CONDITIONAL|CONTESTED|INSUFFICIENT**.
+${dq}
+### EVIDENCE NÉN — FACT/CALC KHÓA
+${palaceBatchEvidenceText(chart, job.palaces)}`;
   }
 
-  function buildBrowserSummaryPrompt(chart, options = {}) {
-    const effectiveChart = chart || getChartFromRuntime();
+  function buildBaziSectionPrompt(chart, options = {}) {
     const subjectKind = options.subjectKind || "unknown";
-    const localSummary = options.localSummary ? clip(options.localSummary, 1400) : "Không có.";
-    const compactEvidence = buildCompactEvidenceText(effectiveChart, { includeAnnual: Boolean(options.includeAnnual) });
-    return `${SYSTEM_RULES}\n${summaryTask(subjectKind, true)}\n### TÓM TẮT CỤC BỘ\n${localSummary}\n\n### EVIDENCE NÉN TỪ TUVI111 — FACT/CALC KHÓA\n${compactEvidence}`;
+    return `${LOCKED_RULES}${subjectRules(subjectKind)}
+### PHẦN: TỨ TRỤ BÁT TỰ + NGŨ HÀNH
+Không lặp 12 cung và chưa tổng kết cuối.
+
+## TỨ TRỤ BÁT TỰ
+Theo thứ tự: 4 trụ → Nhật chủ → tháng lệnh/khí mùa → vượng suy → can chi → hợp/xung/hình/hại/phá nếu evidence có → Thập Thần → dụng/hỷ/kỵ chỉ khi đủ evidence → đại vận → sensitivity giờ/tiết khí. Không đếm số hành để kết luận vượng suy; không “thiếu hành nào bổ hành đó”.
+
+## NGŨ HÀNH ÂM DƯƠNG
+Nêu trợ lực/tiêu hao/kiểm soát, hành vượng/yếu theo evidence nhưng không đồng nhất với dụng thần; tách điều hòa khí hậu với cân bằng thân khi chưa đủ dữ liệu; ứng dụng thực tế thận trọng.
+
+### BAZI FACT/CALC KHÓA
+${clip(baziEvidence(chart), 2500)}`;
   }
 
-  function validateSummary(text, options = {}) {
+  function buildSynthesisSectionPrompt(chart, options = {}) {
+    const subjectKind = options.subjectKind || "unknown";
+    const localSummary = options.localSummary ? clip(options.localSummary, 650) : "-";
+    return `${LOCKED_RULES}${subjectRules(subjectKind)}
+### PHẦN CUỐI — KHÔNG VIẾT LẠI 12 CUNG
+## ĐỐI CHIẾU TỬ VI ↔ BÁT TỰ ↔ NGŨ HÀNH
+Tách: đồng thuận độc lập / cùng dependency / bất đồng+hạ confidence. Quét Mệnh–Tài–Quan, Mệnh–Di, Mệnh–Thân, Phúc–Tài và chuỗi Tứ Hóa lặp có sức cấu trúc.
+
+## RED-TEAM / PHẢN BIỆN
+Ít nhất 3 phản biện mạnh: cherry-picking, một sao=verdict, formation thiếu điều kiện, trộn vận, dependency hệ, SCHOOL khác. Phản biện đúng thì sửa/hạ kết luận.
+
+## TỔNG KẾT CUỐI
+Lõi mạnh nhất / rủi ro dễ lệch / điều kiện tốt-xấu / chìa khóa phát triển.
+
+## HÀNH ĐỘNG THỰC TẾ
+5–10 gợi ý cụ thể, tách khỏi diễn giải truyền thống.
+
+## 3–5 GÓC NHÌN DỄ BỎ SÓT
+Nêu góc có thể đổi hành vi/quyết định và trigger cần kiểm chứng.
+
+LOCAL_RULE_SUMMARY=${localSummary}
+### EVIDENCE NÉN TOÀN LÁ SỐ
+${buildCompactEvidenceText(chart, { includeBazi: true, includeAnnual: false })}`;
+  }
+
+  function buildFullReportSectionPrompt(chart, job, options = {}) {
+    const effective = chart || getChartFromRuntime();
+    if (!effective || !Array.isArray(effective.palaces)) throw new Error("Chưa có dữ liệu lá số đầy đủ.");
+    if (!job?.kind) throw new Error("Thiếu kế hoạch phần báo cáo.");
+    if (job.kind === "palaces") return buildPalaceSectionPrompt(effective, job, options);
+    if (job.kind === "bazi") return buildBaziSectionPrompt(effective, options);
+    if (job.kind === "synthesis") return buildSynthesisSectionPrompt(effective, options);
+    throw new Error(`Loại phần báo cáo không hỗ trợ: ${job.kind}`);
+  }
+
+  function validateFullReportSection(text, job) {
     const value = String(text || "").trim();
-    const normalized = normalize(value);
+    const n = normalize(value);
     const issues = [];
-    const minLength = Math.max(1200, Number(options.minLength || 3500));
-    if (value.length < minLength) issues.push(`Kết luận quá ngắn (${value.length} ký tự, cần >= ${minLength}).`);
-    if (!normalized.includes("ket luan tong quat") && !normalized.includes("tong quan")) issues.push("Thiếu mục/trục: Kết luận tổng quát.");
-    if (!(normalized.includes("menh") && normalized.includes("tai") && normalized.includes("quan"))) issues.push("Thiếu trục: Mệnh–Tài–Quan.");
-    if (!normalized.includes("menh") || !normalized.includes("di")) issues.push("Thiếu trục: Mệnh–Di.");
-    if (!normalized.includes("bat tu") && !normalized.includes("nhat chu")) issues.push("Thiếu mục/trục: Bát Tự.");
-    if (!normalized.includes("tu hoa") && !normalized.includes("hoa loc") && !normalized.includes("hoa quyen") && !normalized.includes("hoa khoa") && !normalized.includes("hoa ky")) issues.push("Thiếu lớp tổng hợp: Tứ Hóa.");
-    if (!normalized.includes("red team") && !normalized.includes("phan bien")) issues.push("Thiếu mục: Red-team/phản biện.");
-    if (!normalized.includes("ket luan cuoi") && !normalized.includes("loi ket")) issues.push("Thiếu mục: Kết luận cuối.");
+    const minChars = job?.kind === "palaces" ? 1300 : 1200;
+    if (value.length < minChars) issues.push(`Phần ${job?.id || "?"} quá ngắn (${value.length} ký tự).`);
+    if (job?.includeDataQuality && !n.includes("data quality")) issues.push("Thiếu Data Quality Card.");
+    if (job?.kind === "palaces") {
+      for (const palace of job.palaces || []) if (!n.includes(normalize(palace))) issues.push(`Thiếu cung ${palace}.`);
+      if (!n.includes("tam phuong")) issues.push("Thiếu tam phương tứ chính.");
+      if (!n.includes("tu hoa")) issues.push("Thiếu Tứ Hóa.");
+      if (!n.includes("trang sinh")) issues.push("Thiếu Tràng Sinh.");
+      if (!n.includes("trang thai")) issues.push("Thiếu trạng thái claim ở kết luận cung.");
+    }
+    if (job?.kind === "bazi") {
+      if (!n.includes("bat tu") && !n.includes("tu tru")) issues.push("Thiếu Tứ Trụ Bát Tự.");
+      if (!n.includes("nhat chu")) issues.push("Thiếu Nhật chủ.");
+      if (!n.includes("ngu hanh")) issues.push("Thiếu Ngũ Hành.");
+    }
+    if (job?.kind === "synthesis") {
+      if (!n.includes("doi chieu")) issues.push("Thiếu đối chiếu hệ.");
+      if (!n.includes("red team") && !n.includes("phan bien")) issues.push("Thiếu Red-team/phản biện.");
+      if (!n.includes("tong ket")) issues.push("Thiếu tổng kết cuối.");
+      if (!n.includes("hanh dong")) issues.push("Thiếu hành động thực tế.");
+      if (!n.includes("goc nhin")) issues.push("Thiếu góc nhìn dễ bỏ sót.");
+    }
     return issues;
   }
 
-  function buildRepairPrompt(originalPrompt, priorText, issues, options = {}) {
-    const priorLimit = Math.max(3000, Number(options.priorLimit || 24000));
-    return `${originalPrompt}\n\n### QUALITY GATE — VIẾT LẠI TOÀN BỘ PHẦN KẾT LUẬN\nBản trước chưa đạt vì:\n- ${issues.join("\n- ")}\n\nBẢN TRƯỚC CHỈ ĐỂ NHẬN BIẾT LỖI, KHÔNG ĐƯỢC SAO CHÉP MÁY MÓC:\n${String(priorText || "").slice(0, priorLimit)}\n\nHãy viết lại toàn bộ từ đầu, giữ nguyên FACT/CALC của tuvi111, chỉ làm kết luận/tổng kết, không quay lại viết 12 cung riêng.`;
+  function buildSectionRepairPrompt(originalPrompt, priorText, issues) {
+    return `${originalPrompt}\n\n### QUALITY GATE — VIẾT LẠI CHỈ PHẦN NÀY\nLỗi:\n- ${issues.join("\n- ")}\nBản trước để nhận biết lỗi:\n${String(priorText || "").slice(0, 1200)}\nViết lại phần này từ đầu, giữ FACT/CALC, không mở rộng sang phần khác.`;
+  }
+
+  function buildSummaryPrompt(chart, options = {}) {
+    return buildSynthesisSectionPrompt(chart || getChartFromRuntime(), options);
+  }
+
+  function buildBrowserSummaryPrompt(chart, options = {}) {
+    return buildSynthesisSectionPrompt(chart || getChartFromRuntime(), options);
+  }
+
+  function validateSummary(text, options = {}) {
+    const issues = validateFullReportSection(text, { id: "summary", kind: "synthesis" });
+    const minLength = Math.max(1000, Number(options.minLength || 1200));
+    if (String(text || "").trim().length < minLength && !issues.some((x) => x.includes("quá ngắn"))) issues.unshift(`Kết luận quá ngắn, cần >= ${minLength} ký tự.`);
+    return issues;
+  }
+
+  function buildRepairPrompt(originalPrompt, priorText, issues) {
+    return buildSectionRepairPrompt(originalPrompt, priorText, issues);
   }
 
   const api = Object.freeze({
     VERSION,
     PROFILE,
+    PALACE_ORDER,
     normalize,
     buildEvidencePackage,
     buildCompactEvidenceText,
+    fullReportPlan,
+    buildFullReportSectionPrompt,
+    validateFullReportSection,
+    buildSectionRepairPrompt,
     buildSummaryPrompt,
     buildBrowserSummaryPrompt,
     validateSummary,

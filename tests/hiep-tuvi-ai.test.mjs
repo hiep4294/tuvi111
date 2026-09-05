@@ -7,62 +7,96 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
 const ai = require(join(root, "hiep-tuvi-ai.js"));
 
+const palaceNames = ["Mệnh", "Phụ Mẫu", "Phúc Đức", "Điền Trạch", "Quan Lộc", "Nô Bộc", "Thiên Di", "Tật Ách", "Tài Bạch", "Tử Tức", "Phu Thê", "Huynh Đệ"];
+const palaces = palaceNames.map((name, index) => ({
+  palace_name: name,
+  branch_name: `Chi${index + 1}`,
+  branch_id: index + 1,
+  element_name: index % 2 ? "Mộc" : "Thủy",
+  has_tuan: name === "Phúc Đức",
+  has_triet: name === "Tài Bạch",
+  is_body: name === "Tài Bạch",
+  stars: [
+    { saoTen: name === "Mệnh" ? "Phá Quân" : `Chính ${name}`, saoDacTinh: name === "Mệnh" ? "Miếu" : "", nature: "main", element_name: "Thủy" },
+    { saoTen: name === "Mệnh" ? "Hóa Quyền" : `Phụ ${name}`, nature: "good", element_name: "Mộc" },
+    { saoTen: "Tràng Sinh", nature: "trang_sinh", element_name: "Thủy" },
+  ],
+}));
+
 const chart = {
   chart_id: "demo",
-  heaven: { menh_branch: 1, than_cu: "Tài Bạch", cuc: "Thủy Nhị Cục" },
-  bazi: { day_master: { stem: "Bính", element: "Hỏa" }, pillars: ["Giáp Thìn", "Giáp Tuất", "Bính Dần", "Mậu Tuất"] },
-  palaces: [
-    {
-      palace_name: "Mệnh", branch_name: "Tý", element_name: "Thủy", has_tuan: false, has_triet: false,
-      stars: [
-        { saoTen: "Phá Quân", saoDacTinh: "Miếu", nature: "main", element_name: "Thủy" },
-        { saoTen: "Hóa Quyền", nature: "good", element_name: "Thủy" },
-      ],
-    },
-    { palace_name: "Quan Lộc", branch_name: "Thìn", stars: [{ saoTen: "Tham Lang", nature: "main" }] },
-    { palace_name: "Tài Bạch", branch_name: "Thân", stars: [{ saoTen: "Thất Sát", nature: "main" }] },
-    { palace_name: "Thiên Di", branch_name: "Ngọ", stars: [{ saoTen: "Liêm Trinh", nature: "main" }, { saoTen: "Thiên Tướng", nature: "main" }] },
-  ],
+  heaven: {
+    name: "Mẫu", gender: "Nam", input_time: "20:00 29/10/2024", chart_lunar_date: "27/09/Giáp Thìn",
+    menh_branch: 1, than_cu: "Tài Bạch", cuc: "Thủy Nhị Cục", ban_menh: "Phúc Đăng Hỏa",
+  },
+  bazi: {
+    day_master: { stem: "Bính", element: "Hỏa", preliminary_strength: "Khá" },
+    pillars: ["Giáp Thìn", "Giáp Tuất", "Bính Dần", "Mậu Tuất"],
+    element_balance: { dominant: "Thổ", weakest: "Kim" },
+    luck_cycles: { cycles: [{ text: "Ất Hợi" }] },
+  },
+  palaces,
+  combined_analysis: { cross_system_signals: [{ relation: "support", tu_vi: "Mệnh mạnh", bat_tu: "Nhật chủ có căn" }] },
 };
 
-assert.equal(ai.PROFILE, "SUMMARY_ONLY");
+assert.equal(ai.VERSION, "2.1.0");
+assert.equal(ai.PROFILE, "HIEP_TUVI_FULL_REPORT");
+assert.deepEqual(ai.PALACE_ORDER, palaceNames);
+
 const evidence = ai.buildEvidencePackage(chart);
-assert.equal(evidence.ai_scope, "summary_and_conclusion_only");
+assert.equal(evidence.ai_scope, "interpret_locked_facts_only");
 assert.equal(evidence.palaces[0].stars[0].name, "Phá Quân");
 
-const fullPrompt = ai.buildSummaryPrompt(chart, { subjectKind: "child", localSummary: { generatedBy: "offline" } });
-assert.match(fullPrompt, /KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ/);
-assert.match(fullPrompt, /Mệnh–Tài–Quan/);
-assert.match(fullPrompt, /Red-team/);
-assert.match(fullPrompt, /Phá Quân/);
-assert.match(fullPrompt, /Giáp Thìn/);
-assert.match(fullPrompt, /summary_and_conclusion_only/);
+const plan = ai.fullReportPlan();
+assert.equal(plan.length, 8);
+const palaceJobs = plan.filter((job) => job.kind === "palaces");
+assert.equal(palaceJobs.length, 6);
+assert.equal(palaceJobs.flatMap((job) => job.palaces).length, 12);
+assert.deepEqual(palaceJobs.flatMap((job) => job.palaces), palaceNames);
+assert.deepEqual(plan[0].palaces, ["Mệnh", "Phụ Mẫu"]);
+assert.equal(plan[6].kind, "bazi");
+assert.equal(plan[7].kind, "synthesis");
+
+const firstPrompt = ai.buildFullReportSectionPrompt(chart, plan[0], { subjectKind: "child" });
+assert.match(firstPrompt, /DATA QUALITY CARD/);
+assert.match(firstPrompt, /Mệnh → Phụ Mẫu/);
+assert.match(firstPrompt, /tam phương tứ chính/i);
+assert.match(firstPrompt, /nhị hợp \+ giáp cung/i);
+assert.match(firstPrompt, /Tứ Hóa/);
+assert.match(firstPrompt, /Tuần\/Triệt/);
+assert.match(firstPrompt, /CHỦ THỂ TRẺ EM/);
+assert.match(firstPrompt, /Phá Quân/);
+assert.ok(firstPrompt.length < 8500, `palace prompt must fit compact local context, got ${firstPrompt.length} chars`);
+
+const baziPrompt = ai.buildFullReportSectionPrompt(chart, plan[6], { subjectKind: "adult" });
+assert.match(baziPrompt, /TỨ TRỤ BÁT TỰ \+ NGŨ HÀNH/);
+assert.match(baziPrompt, /Nhật chủ/);
+assert.match(baziPrompt, /Giáp Thìn/);
+assert.match(baziPrompt, /không “thiếu hành nào bổ hành đó”/);
+assert.ok(baziPrompt.length < 7000, `bazi prompt should be compact, got ${baziPrompt.length}`);
+
+const synthesisPrompt = ai.buildFullReportSectionPrompt(chart, plan[7], { localSummary: "offline" });
+assert.match(synthesisPrompt, /ĐỐI CHIẾU TỬ VI ↔ BÁT TỰ ↔ NGŨ HÀNH/);
+assert.match(synthesisPrompt, /RED-TEAM \/ PHẢN BIỆN/);
+assert.match(synthesisPrompt, /HÀNH ĐỘNG THỰC TẾ/);
+assert.match(synthesisPrompt, /3–5 GÓC NHÌN DỄ BỎ SÓT/);
+assert.ok(synthesisPrompt.length < 9000, `synthesis prompt should be compact, got ${synthesisPrompt.length}`);
 
 const compact = ai.buildCompactEvidenceText(chart);
-assert.match(compact, /Phá Quân\[Miếu\/Thủy\]/);
+assert.match(compact, /Phá Quân\[Miếu\/Thủy\/main\]/);
 assert.match(compact, /Giáp Thìn/);
-assert.ok(compact.length < 6000, `compact evidence should stay small, got ${compact.length}`);
+assert.ok(compact.length < 6500, `compact evidence should stay bounded, got ${compact.length}`);
 
-const browserPrompt = ai.buildBrowserSummaryPrompt(chart, { subjectKind: "child", localSummary: "offline concise" });
-assert.match(browserPrompt, /EVIDENCE NÉN TỪ TUVI111/);
-assert.match(browserPrompt, /700–1\.200 từ/);
-assert.match(browserPrompt, /Phá Quân/);
-assert.match(browserPrompt, /Giáp Thìn/);
-assert.doesNotMatch(browserPrompt, /NHIỆM VỤ BƯỚC/);
-assert.ok(browserPrompt.length < fullPrompt.length, "browser prompt must be smaller than full cloud prompt");
+const goodPalaceText = `${"DATA QUALITY CARD. ## CUNG MỆNH Nền cung. Chính tinh phụ tinh. Ngũ Hành. Bộ sao. Tràng Sinh. Tam phương tứ chính. Đối cung. Nhị hợp giáp cung. Tứ Hóa. Tuần Triệt. Mệnh Thân. Điểm hỗ trợ. Điểm phá. Kết luận Mạnh Yếu Điều kiện Trạng thái CONDITIONAL. ## CUNG PHỤ MẪU Tràng Sinh Tam phương Tứ Hóa Trạng thái CONDITIONAL. ".repeat(8)}`;
+assert.deepEqual(ai.validateFullReportSection(goodPalaceText, plan[0]), []);
 
-const issues = ai.validateSummary("Kết luận ngắn", { minLength: 2200 });
-assert.ok(issues.some((item) => item.includes("quá ngắn")));
-assert.ok(issues.some((item) => item.includes("Bát Tự")));
-assert.ok(issues.some((item) => item.includes("Mệnh–Di")));
-assert.ok(issues.some((item) => item.includes("Tứ Hóa")));
+const bad = ai.validateFullReportSection("ngắn", plan[0]);
+assert.ok(bad.some((item) => item.includes("quá ngắn")));
+assert.ok(bad.some((item) => item.includes("Data Quality")));
+assert.ok(bad.some((item) => item.includes("cung Mệnh")));
 
-const longSummary = `${"Kết luận tổng quát Mệnh Tài Quan Thiên Di Tứ Hóa Bát Tự Nhật chủ phản biện Red team Kết luận cuối. ".repeat(50)}`;
-assert.deepEqual(ai.validateSummary(longSummary, { minLength: 2200 }), []);
-
-const repair = ai.buildRepairPrompt(browserPrompt, "bản cũ", ["thiếu phản biện"], { priorLimit: 1200 });
+const repair = ai.buildSectionRepairPrompt(firstPrompt, "bản cũ", ["thiếu cung"]);
 assert.match(repair, /QUALITY GATE/);
-assert.match(repair, /chỉ làm kết luận\/tổng kết/);
-assert.match(repair, /không quay lại viết 12 cung riêng/i);
+assert.match(repair, /VIẾT LẠI CHỈ PHẦN NÀY/);
 
-console.log("PASS: Hiep TuVi AI supports compact browser prompts and quality gates");
+console.log("PASS: Hiep TuVi AI uses eight compact stages with all 12 palaces before Bazi and synthesis");

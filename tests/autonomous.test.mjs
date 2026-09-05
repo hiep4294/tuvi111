@@ -9,12 +9,17 @@ const source = readFileSync(join(root, "autonomous.js"), "utf8");
 const listeners = new Map();
 const storage = new Map();
 
+assert.match(source, /hiep-tuvi-ai\.js\?v=2\.0\.0/);
 assert.match(source, /browser-ai\.js\?v=1\.1\.1/);
-assert.match(source, /buildBrowserSummaryPrompt/);
+assert.match(source, /fullReportPlan/);
+assert.match(source, /buildFullReportSectionPrompt/);
+assert.match(source, /validateFullReportSection/);
 assert.match(source, /requestLocalWithFallback/);
-assert.match(source, /AI local kết luận & tổng kết/);
+assert.match(source, /automatic:\s*true/);
+assert.match(source, /chartGeneration/);
+assert.match(source, /AI luận giải lại/);
 assert.match(source, /webGpuAvailable/);
-assert.doesNotMatch(source, /originalRunGemini/);
+assert.doesNotMatch(source, /if\s*\(options\.automatic\)\s*return/);
 assert.doesNotMatch(source, /15 bước/);
 
 const nodes = {
@@ -58,14 +63,14 @@ context.window = context;
 vm.runInNewContext(source, context, { filename: "autonomous.js" });
 
 context.restoreGeminiSettings();
-assert.equal(context.lastStatus, "AI local · chưa kiểm tra");
+assert.equal(context.lastStatus, "AI tự động · đang kiểm tra WebGPU");
 
 await context.runGeminiAnalysis({ automatic: true });
-assert.equal(context.lastAlert, undefined, "automatic AI must stay disabled");
+assert.equal(context.lastAlert, undefined, "automatic mode with no chart must fail silently");
 
 const form = context.parseForm();
 assert.equal(form.year, 2023);
 nodes.birthDate.value = "2023-02-31";
 assert.throws(() => context.parseForm(), /Ngày sinh không hợp lệ/);
 
-console.log("PASS: AI remains opt-in, local-first, and form validation remains active");
+console.log("PASS: AI full report is automatic, local-first, and form validation remains active");

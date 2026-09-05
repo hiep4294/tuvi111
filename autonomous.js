@@ -1,14 +1,17 @@
 "use strict";
 
-/* Local-first Hiep TuVi AI adapter: tuvi111 computes, browser WebGPU AI only summarizes. */
+/* Hiep TuVi AUTO full-report adapter: tuvi111 locks FACT/CALC, local WebGPU AI writes the report. */
 (function installAutonomousMode() {
   const originalCallWorker = window.callWorker;
   const originalParseForm = window.parseForm;
   const originalToast = window.toast;
   const LOCAL_MODEL_KEY = "tuvi-browser-ai-model";
-  const CLOUD_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
   let hiepAiLoadPromise = null;
   let browserAiLoadPromise = null;
+  let knowledgeLoadPromise = null;
+  let aiBusy = false;
+  let activeRun = 0;
+  let chartGeneration = 0;
 
   function withTimeout(promise, timeoutMs, message) {
     let timer;
@@ -39,49 +42,21 @@
   }
 
   function loadHiepTuViAI() {
-    return loadScript("HiepTuViAI", "hiep-tuvi-ai.js?v=1.2.0", hiepAiLoadPromise, (value) => { hiepAiLoadPromise = value; });
+    return loadScript("HiepTuViAI", "hiep-tuvi-ai.js?v=2.0.0", hiepAiLoadPromise, (value) => { hiepAiLoadPromise = value; });
   }
 
   function loadBrowserAI() {
     return loadScript("HiepBrowserAI", "browser-ai.js?v=1.1.1", browserAiLoadPromise, (value) => { browserAiLoadPromise = value; });
   }
 
-  function normalizeEndpoint(value) {
-    return String(value || "").trim().replace(/\/+$/, "");
+  function loadHiepTuViKnowledge() {
+    return loadScript("HiepTuViKnowledge", "hiep-tuvi-knowledge.js?v=1.0.0", knowledgeLoadPromise, (value) => { knowledgeLoadPromise = value; });
   }
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     })[char]);
-  }
-
-  async function configureAiProxy() {
-    const endpoint = normalizeEndpoint(localStorage.getItem(CLOUD_ENDPOINT_KEY) || "");
-    if (!endpoint || !("serviceWorker" in navigator)) return false;
-    const valid = endpoint.startsWith("https://") || endpoint.startsWith("http://localhost") || endpoint.startsWith("http://127.0.0.1");
-    if (!valid) return false;
-    const registration = await navigator.serviceWorker.ready;
-    const worker = navigator.serviceWorker.controller || registration.active;
-    if (!worker) return false;
-    if (typeof MessageChannel === "undefined") {
-      worker.postMessage({ type: "hiep-ai-endpoint", endpoint });
-      return true;
-    }
-    return withTimeout(new Promise((resolve, reject) => {
-      const channel = new MessageChannel();
-      channel.port1.onmessage = (event) => {
-        const data = event.data || {};
-        if (data.ok) resolve(true);
-        else reject(new Error(data.error || "Service Worker từ chối AI endpoint."));
-      };
-      worker.postMessage({ type: "hiep-ai-endpoint", endpoint }, [channel.port2]);
-    }), 3000, "Service Worker chưa xác nhận AI fallback.");
-  }
-
-  function aiProxyUrl(path) {
-    if (typeof location === "undefined") return path;
-    return new URL(`./__hiep_ai_proxy__/${path}`, location.href).href;
   }
 
   function subjectKindFromForm() {
@@ -101,109 +76,47 @@
   }
 
   function setAiBusy(busy) {
+    aiBusy = busy;
     const buttons = [document.getElementById("runGeminiButton"), document.getElementById("runGeminiInlineButton")].filter(Boolean);
     for (const button of buttons) {
       button.disabled = busy;
-      button.textContent = busy ? "AI local đang tổng kết..." : "AI local kết luận & tổng kết";
+      button.textContent = busy ? "AI đang tự luận giải..." : "AI luận giải lại";
     }
   }
 
-  function setProgress(message, progress) {
-    const text = String(message || "Đang chuẩn bị AI local...");
-    const pct = Number.isFinite(Number(progress)) ? Math.round(Number(progress) * 100) : null;
-    if (typeof window.setGeminiStatus === "function") {
-      window.setGeminiStatus(pct === null ? text : `${text} ${pct}%`, "busy");
-    }
-    const output = document.getElementById("geminiOutput");
-    if (output) {
-      output.innerHTML = `<div class="ai-loading"><span></span><p>${escapeHtml(text)}${pct === null ? "" : ` ${pct}%`}</p></div>`;
-    }
+  function setStatus(message, mode = "busy") {
+    if (typeof window.setGeminiStatus === "function") window.setGeminiStatus(message, mode);
   }
 
-  async function requestCloudSummary(prompt, model, metadata = {}) {
-    await configureAiProxy();
-    const response = await withTimeout(fetch(aiProxyUrl("analyze"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        model,
-        max_output_tokens: 5000,
-        metadata: { prompt_kind: "final_summary_only", summary_only: true, ...metadata },
-      }),
-      cache: "no-store",
-    }), 180000, "AI fallback không phản hồi.");
-    const text = await response.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { error: text }; }
-    if (!response.ok) throw new Error(data.error || data.message || `HTTP ${response.status}`);
-    if (!data.text) throw new Error("AI fallback không trả về kết luận.");
-    data.local = false;
-    return data;
+  function reportMeta(model, completed, total, repairs) {
+    const parts = ["Hiep TuVi AI chạy cục bộ trên WebGPU"];
+    if (model) parts.push(model);
+    parts.push(`${completed}/${total} phần`);
+    if (repairs) parts.push(`đã tự sửa ${repairs} phần`);
+    return parts.join(" · ");
   }
 
-  async function requestLocalSummary(prompt, model, options = {}) {
-    const browserAi = await loadBrowserAI();
-    if (!browserAi?.generate) throw new Error("Hiep Browser AI chưa sẵn sàng.");
-    return browserAi.generate(prompt, {
-      model,
-      maxTokens: options.maxTokens || 1300,
-      temperature: 0.2,
-      onProgress(report) {
-        setProgress(report?.text || "Đang tải/chạy model local...", report?.progress);
-      },
-    });
-  }
-
-  function localModelCandidates(browserAi, preferredId) {
-    const models = Array.isArray(browserAi?.MODELS) ? [...browserAi.MODELS] : [];
-    const preferred = browserAi.modelRecord?.(preferredId) || models[0];
-    const lighter = models
-      .filter((model) => model.id !== preferred?.id && Number(model.vramMB || Infinity) < Number(preferred?.vramMB || Infinity))
-      .sort((a, b) => Number(b.vramMB || 0) - Number(a.vramMB || 0));
-    return [preferred, ...lighter].filter(Boolean);
-  }
-
-  async function requestLocalWithFallback(prompt, browserAi, preferredId, options = {}) {
-    const candidates = localModelCandidates(browserAi, preferredId);
-    let lastError = null;
-    for (let index = 0; index < candidates.length; index += 1) {
-      const model = candidates[index];
-      try {
-        if (index > 0 && typeof window.setGeminiStatus === "function") {
-          window.setGeminiStatus(`Model trước không chạy được · thử ${model.label}`, "busy");
-        }
-        const data = await requestLocalSummary(prompt, model.id, options);
-        localStorage.setItem(LOCAL_MODEL_KEY, model.id);
-        const modelNode = document.getElementById("geminiModel");
-        if (modelNode) modelNode.value = model.id;
-        return data;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError || new Error("Không có model local phù hợp với GPU hiện tại.");
-  }
-
-  function renderFinalSummary(data, quality) {
+  function renderFullReport(parts, options = {}) {
     const output = document.getElementById("geminiOutput");
     if (!output) return;
-    const usage = Number(data?.usage?.total_tokens || data?.usage?.total_token_count || data?.usage?.totalTokenCount || 0);
-    const repaired = quality?.repaired ? " · đã tự sửa 1 lần" : "";
-    const local = data?.local !== false;
-    const model = String(data?.model || "");
-    const meta = `${local ? "AI chạy cục bộ trên WebGPU" : "AI fallback cloud"}${model ? ` · ${model}` : ""}${repaired}${usage ? ` · ${usage} token` : ""}`;
-    output.dataset.raw = String(data.text || "");
+    const total = Number(options.total || parts.length || 1);
+    const raw = parts.map((part) => String(part.text || "").trim()).filter(Boolean).join("\n\n---\n\n");
+    output.dataset.raw = raw;
+
     if (typeof window.renderMarkdownSafe === "function") {
-      output.innerHTML = `<div class="ai-meta">${escapeHtml(meta)}</div><section class="ai-report-part">${window.renderMarkdownSafe(data.text)}</section>`;
+      const sections = parts.map((part) => `<section class="ai-report-part" data-report-part="${escapeHtml(part.id || "")}">${window.renderMarkdownSafe(part.text)}</section>`).join("");
+      const loading = options.loading
+        ? `<div class="ai-loading"><span></span><p>${escapeHtml(options.loading)}${Number.isFinite(options.progress) ? ` ${Math.round(options.progress * 100)}%` : ""}</p></div>`
+        : "";
+      output.innerHTML = `<div class="ai-meta">${escapeHtml(reportMeta(options.model || "", parts.length, total, options.repairs || 0))}</div>${sections}${loading}`;
     } else {
       output.innerHTML = "";
-      const metaNode = document.createElement("div");
-      metaNode.className = "ai-meta";
-      metaNode.textContent = meta;
+      const meta = document.createElement("div");
+      meta.className = "ai-meta";
+      meta.textContent = reportMeta(options.model || "", parts.length, total, options.repairs || 0);
       const pre = document.createElement("pre");
-      pre.textContent = String(data.text || "");
-      output.append(metaNode, pre);
+      pre.textContent = raw + (options.loading ? `\n\n${options.loading}` : "");
+      output.append(meta, pre);
     }
   }
 
@@ -213,8 +126,22 @@
     output.innerHTML = "";
     const node = document.createElement("div");
     node.className = "ai-error";
-    node.textContent = `Không tạo được kết luận AI local: ${String(error?.message || error)}`;
+    node.textContent = `Không tạo được báo cáo Hiep TuVi AI: ${String(error?.message || error)}`;
     output.appendChild(node);
+  }
+
+  function restoreFallbackAfterAutoFailure(fallback, error) {
+    const output = document.getElementById("geminiOutput");
+    if (!output) return;
+    output.innerHTML = "";
+    const warning = document.createElement("div");
+    warning.className = "ai-error";
+    warning.textContent = `AI local chưa hoàn thành; giữ bản quy tắc cục bộ bên dưới. Lỗi: ${String(error?.message || error)}`;
+    output.appendChild(warning);
+    const holder = document.createElement("div");
+    holder.innerHTML = fallback.html || '<p class="muted">Không có bản tổng luận dự phòng.</p>';
+    while (holder.firstChild) output.appendChild(holder.firstChild);
+    output.dataset.raw = fallback.raw || "";
   }
 
   function populateLocalModels(browserAi) {
@@ -246,14 +173,57 @@
     populateLocalModels(browserAi);
   }
 
-  window.restoreGeminiSettings = function restoreLocalAiSettings() {
-    if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("AI local · chưa kiểm tra", "");
-    loadBrowserAI().then((browserAi) => {
+  function localModelCandidates(browserAi, preferredId) {
+    const models = Array.isArray(browserAi?.MODELS) ? [...browserAi.MODELS] : [];
+    const preferred = browserAi.modelRecord?.(preferredId) || models[0];
+    const lighter = models
+      .filter((model) => model.id !== preferred?.id && Number(model.vramMB || Infinity) < Number(preferred?.vramMB || Infinity))
+      .sort((a, b) => Number(b.vramMB || 0) - Number(a.vramMB || 0));
+    return [preferred, ...lighter].filter(Boolean);
+  }
+
+  async function requestLocal(prompt, model, options = {}) {
+    const browserAi = await loadBrowserAI();
+    if (!browserAi?.generate) throw new Error("Hiep Browser AI chưa sẵn sàng.");
+    return browserAi.generate(prompt, {
+      model,
+      maxTokens: options.maxTokens || 1650,
+      temperature: 0.18,
+      onProgress: options.onProgress,
+    });
+  }
+
+  async function requestLocalWithFallback(prompt, browserAi, preferredId, options = {}) {
+    const candidates = localModelCandidates(browserAi, preferredId);
+    let lastError = null;
+    for (let index = 0; index < candidates.length; index += 1) {
+      const model = candidates[index];
+      try {
+        if (index > 0) setStatus(`Model trước không chạy được · tự hạ xuống ${model.label}`, "busy");
+        const data = await requestLocal(prompt, model.id, options);
+        localStorage.setItem(LOCAL_MODEL_KEY, model.id);
+        const modelNode = document.getElementById("geminiModel");
+        if (modelNode) modelNode.value = model.id;
+        return data;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("Không có model local phù hợp với GPU hiện tại.");
+  }
+
+  function withKnowledge(prompt, knowledge, chart, job) {
+    const pack = knowledge?.forJob?.(chart, job);
+    if (!pack) return prompt;
+    return `${prompt}\n\n### HIEP TUVI KNOWLEDGE PACK — NATIVE RULES, KHÔNG ĐƯỢC DÙNG NHƯ VERDICT\n${pack}`;
+  }
+
+  window.restoreGeminiSettings = function restoreAutoHiepTuViSettings() {
+    setStatus("AI tự động · đang kiểm tra WebGPU", "");
+    Promise.all([loadBrowserAI(), loadHiepTuViKnowledge()]).then(([browserAi]) => {
       if (!browserAi) return;
       configureLocalAiUi(browserAi);
-      if (typeof window.setGeminiStatus === "function") {
-        window.setGeminiStatus(browserAi.webGpuAvailable() ? "AI local · WebGPU sẵn sàng" : "AI local · thiếu WebGPU", browserAi.webGpuAvailable() ? "ready" : "error");
-      }
+      setStatus(browserAi.webGpuAvailable() ? "AI tự động · WebGPU sẵn sàng" : "AI tự động · thiếu WebGPU", browserAi.webGpuAvailable() ? "ready" : "error");
     });
   };
 
@@ -267,85 +237,119 @@
       configureLocalAiUi(browserAi);
       const info = await browserAi.inspectGpu();
       if (!info.ok) throw new Error(info.reason || "WebGPU không sẵn sàng.");
-      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("WebGPU sẵn sàng · model chạy trên máy", "ready");
-      window.toast?.("WebGPU sẵn sàng. Model sẽ được tải/cached khi chạy lần đầu.");
+      setStatus("WebGPU sẵn sàng · Hiep TuVi AI sẽ tự chạy sau khi lập lá số", "ready");
+      window.toast?.("WebGPU sẵn sàng. Lập lá số xong AI sẽ tự luận giải.");
     } catch (error) {
-      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("WebGPU không sẵn sàng", "error");
+      setStatus("WebGPU không sẵn sàng", "error");
       if (!options.silent) alert("Không thể chạy AI trực tiếp trong trình duyệt:\n" + error.message);
     } finally {
       if (button) button.disabled = false;
     }
   };
 
-  window.runGeminiAnalysis = async function runBrowserSummaryAi(options = {}) {
-    if (options.automatic) return Promise.resolve();
+  window.runGeminiAnalysis = async function runAutoHiepTuViReport(options = {}) {
+    if (aiBusy) return;
+    const automatic = Boolean(options.automatic);
     const chart = window.__HIEP_TUVI_CHART__;
     if (!chart) {
-      alert("Chưa lập lá số. Hãy lập lá số trước khi yêu cầu AI kết luận.");
+      if (!automatic) alert("Chưa lập lá số. Hãy lập lá số trước.");
       return;
     }
 
+    const output = document.getElementById("geminiOutput");
+    const fallback = { html: output?.innerHTML || "", raw: output?.dataset?.raw || "" };
+    const runId = ++activeRun;
     setAiBusy(true);
-    setProgress("Đang chuẩn bị AI local...", null);
+    setStatus(automatic ? "AI tự động đang chuẩn bị báo cáo Hiep Tuvi..." : "AI đang luận giải lại...", "busy");
+
     try {
-      const [ai, browserAi] = await Promise.all([loadHiepTuViAI(), loadBrowserAI()]);
-      if (!ai?.buildBrowserSummaryPrompt) throw new Error("Lớp Hiep TuVi AI compact chưa sẵn sàng.");
-      if (!browserAi) throw new Error("Lớp Browser AI chưa sẵn sàng.");
+      const [ai, browserAi, knowledge] = await Promise.all([loadHiepTuViAI(), loadBrowserAI(), loadHiepTuViKnowledge()]);
+      if (runId !== activeRun) throw new Error("SUPERSEDED");
+      if (!ai?.fullReportPlan || !ai?.buildFullReportSectionPrompt) throw new Error("Lớp Hiep TuVi FULL_REPORT chưa sẵn sàng.");
+      if (!knowledge?.forJob) throw new Error("Knowledge pack Hiep Tuvi chưa sẵn sàng.");
+      if (!browserAi?.webGpuAvailable()) throw new Error("Thiết bị không có WebGPU. AI local không thể tự chạy.");
       configureLocalAiUi(browserAi);
 
       let selectedModel = document.getElementById("geminiModel")?.value || localStorage.getItem(LOCAL_MODEL_KEY) || browserAi.DEFAULT_MODEL;
       localStorage.setItem(LOCAL_MODEL_KEY, selectedModel);
       const subjectKind = subjectKindFromForm();
-      const prompt = ai.buildBrowserSummaryPrompt(chart, {
-        subjectKind,
-        localSummary: localSummaryForAi(chart),
-        includeAnnual: false,
-      });
+      const localSummary = localSummaryForAi(chart);
+      const plan = ai.fullReportPlan();
+      const parts = [];
+      let actualModel = selectedModel;
+      let repairs = 0;
 
-      let data;
-      let usingLocal = browserAi.webGpuAvailable();
-      if (usingLocal) {
-        data = await requestLocalWithFallback(prompt, browserAi, selectedModel, { maxTokens: 1300 });
-        selectedModel = data.model || selectedModel;
-      } else {
-        const fallbackEndpoint = normalizeEndpoint(localStorage.getItem(CLOUD_ENDPOINT_KEY) || "");
-        if (!fallbackEndpoint) throw new Error("Thiết bị không có WebGPU và chưa cấu hình fallback cloud.");
-        const fullPrompt = ai.buildSummaryPrompt(chart, { subjectKind, localSummary: localSummaryForAi(chart) });
-        data = await requestCloudSummary(fullPrompt, "gemini-3.8-flash", { chart_id: chart.chart_id || null });
-        usingLocal = false;
-      }
+      for (let index = 0; index < plan.length; index += 1) {
+        if (runId !== activeRun) throw new Error("SUPERSEDED");
+        const job = plan[index];
+        const label = `Đang luận ${index + 1}/${plan.length}: ${job.label}`;
+        setStatus(label, "busy");
+        renderFullReport(parts, { model: actualModel, total: plan.length, repairs, loading: label });
 
-      const minLength = usingLocal ? 2200 : 3500;
-      const issuesBefore = ai.validateSummary(data.text, { minLength });
-      let quality = { repaired: false, issues_before: issuesBefore, issues_after: issuesBefore };
+        const basePrompt = ai.buildFullReportSectionPrompt(chart, job, { subjectKind, localSummary });
+        const prompt = withKnowledge(basePrompt, knowledge, chart, job);
+        const maxTokens = job.kind === "palaces" ? 1700 : 1600;
+        let data = await requestLocalWithFallback(prompt, browserAi, selectedModel, {
+          maxTokens,
+          onProgress(report) {
+            if (runId !== activeRun) return;
+            const text = String(report?.text || label);
+            const progress = Number(report?.progress);
+            setStatus(Number.isFinite(progress) ? `${text} ${Math.round(progress * 100)}%` : text, "busy");
+            renderFullReport(parts, { model: actualModel, total: plan.length, repairs, loading: label, progress: Number.isFinite(progress) ? progress : undefined });
+          },
+        });
+        if (runId !== activeRun) throw new Error("SUPERSEDED");
+        actualModel = data.model || actualModel;
+        selectedModel = actualModel;
 
-      if (issuesBefore.length) {
-        if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("Kết luận chưa đạt, đang tự sửa 1 lần...", "busy");
-        if (usingLocal) {
-          const repairPrompt = ai.buildRepairPrompt(prompt, data.text, issuesBefore, { priorLimit: 1200 });
-          data = await requestLocalWithFallback(repairPrompt, browserAi, selectedModel, { maxTokens: 1400 });
-        } else {
-          const fullPrompt = ai.buildSummaryPrompt(chart, { subjectKind, localSummary: localSummaryForAi(chart) });
-          const repairPrompt = ai.buildRepairPrompt(fullPrompt, data.text, issuesBefore, { priorLimit: 6000 });
-          data = await requestCloudSummary(repairPrompt, "gemini-3.8-flash", { chart_id: chart.chart_id || null, repair: true });
+        let issues = ai.validateFullReportSection(data.text, job);
+        if (issues.length && repairs < 1) {
+          repairs += 1;
+          setStatus(`Phần ${index + 1} chưa đạt quality gate · tự sửa 1 lần`, "busy");
+          const repairPrompt = ai.buildSectionRepairPrompt(prompt, data.text, issues);
+          data = await requestLocalWithFallback(repairPrompt, browserAi, selectedModel, { maxTokens });
+          if (runId !== activeRun) throw new Error("SUPERSEDED");
+          actualModel = data.model || actualModel;
+          selectedModel = actualModel;
+          issues = ai.validateFullReportSection(data.text, job);
         }
-        quality = { repaired: true, issues_before: issuesBefore, issues_after: ai.validateSummary(data.text, { minLength }) };
+
+        parts.push({ id: job.id, text: data.text, issues });
+        renderFullReport(parts, { model: actualModel, total: plan.length, repairs });
       }
 
-      renderFinalSummary(data, quality);
-      if (typeof window.setGeminiStatus === "function") {
-        const mode = quality.issues_after.length ? "busy" : "ready";
-        const prefix = data.local === false ? "AI fallback" : "AI local";
-        window.setGeminiStatus(quality.issues_after.length ? `${prefix} · còn cảnh báo chất lượng` : `${prefix} · hoàn thành`, mode);
-      }
-      window.toast?.(data.local === false ? "Đã hoàn thành bằng AI fallback" : "Đã hoàn thành bằng AI chạy trực tiếp trên máy");
+      if (runId !== activeRun) throw new Error("SUPERSEDED");
+      const remainingIssues = parts.flatMap((part) => part.issues || []);
+      renderFullReport(parts, { model: actualModel, total: plan.length, repairs });
+      setStatus(remainingIssues.length ? "Hiep TuVi AI hoàn thành · còn cảnh báo chất lượng" : "Hiep TuVi AI · hoàn thành đầy đủ", remainingIssues.length ? "busy" : "ready");
+      window.toast?.(automatic ? "AI đã tự hoàn thành báo cáo Hiep Tuvi" : "Đã luận giải lại theo Hiep Tuvi");
     } catch (error) {
-      renderAiError(error);
-      if (typeof window.setGeminiStatus === "function") window.setGeminiStatus("AI local lỗi", "error");
+      if (runId !== activeRun || String(error?.message || error) === "SUPERSEDED") return;
+      if (automatic) {
+        restoreFallbackAfterAutoFailure(fallback, error);
+        setStatus("AI tự động chưa hoàn thành · đang hiển thị bản cục bộ", "error");
+      } else {
+        renderAiError(error);
+        setStatus("Hiep TuVi AI lỗi", "error");
+      }
     } finally {
       setAiBusy(false);
     }
   };
+
+  function scheduleAutomaticReport(generation, chartId) {
+    const tryStart = () => {
+      if (generation !== chartGeneration) return;
+      if (window.__HIEP_TUVI_CHART__?.chart_id !== chartId) return;
+      if (aiBusy) {
+        setTimeout(tryStart, 250);
+        return;
+      }
+      window.runGeminiAnalysis?.({ automatic: true });
+    };
+    setTimeout(tryStart, 180);
+  }
 
   window.callWorker = function callWorkerWithTimeout(action, payload = {}) {
     return withTimeout(
@@ -355,7 +359,12 @@
         ? "Bộ máy tính quá 120 giây. Hãy tải lại trang và thử lại."
         : "Bộ máy không phản hồi sau 30 giây."
     ).then((result) => {
-      if (action === "generate" && result?.chart) window.__HIEP_TUVI_CHART__ = result.chart;
+      if (action === "generate" && result?.chart) {
+        window.__HIEP_TUVI_CHART__ = result.chart;
+        const generation = ++chartGeneration;
+        activeRun += 1; // invalidate any report still running for the previous chart
+        scheduleAutomaticReport(generation, result.chart.chart_id);
+      }
       return result;
     });
   };
@@ -409,6 +418,7 @@
 
   window.addEventListener("DOMContentLoaded", () => {
     loadHiepTuViAI();
+    loadHiepTuViKnowledge();
     loadBrowserAI().then((browserAi) => {
       if (browserAi) configureLocalAiUi(browserAi);
     });
@@ -428,19 +438,19 @@
       const heading = resultPanel?.querySelector?.("h2");
       const kicker = resultPanel?.querySelector?.(".section-kicker");
       const tag = resultPanel?.querySelector?.(".tag");
-      if (heading) heading.textContent = "Hiep TuVi Local AI — kết luận & tổng kết";
-      if (kicker) kicker.textContent = "TUVI111 LOCAL ENGINE · WEBGPU LOCAL LLM";
-      if (tag) tag.textContent = "LOCAL · SUMMARY_ONLY";
-      document.querySelectorAll("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "AI local kết luận & tổng kết"; });
+      if (heading) heading.textContent = "Hiep TuVi AI — tự luận giải đầy đủ";
+      if (kicker) kicker.textContent = "TUVI111 FACT/CALC · LOCAL WEBGPU · AUTO";
+      if (tag) tag.textContent = "AUTO · HIEP_TUVI";
+      document.querySelectorAll("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "AI luận giải lại"; });
       const inlineNote = document.querySelector(".inline-gemini-actions .muted");
-      if (inlineNote) inlineNote.textContent = "Lá số/Bát Tự chạy bằng tuvi111; model AI chạy trực tiếp trên GPU của trình duyệt. Lần đầu tải model, các lần sau dùng cache trình duyệt.";
+      if (inlineNote) inlineNote.textContent = "Sau khi lập lá số, AI local tự viết: Data Quality → 12 cung → Bát Tự → Ngũ Hành → đối chiếu → phản biện → tổng kết. Không cần bấm thêm.";
       const panelTitle = document.querySelector(".gemini-panel h2");
-      if (panelTitle) panelTitle.textContent = "Hiep TuVi Local AI";
+      if (panelTitle) panelTitle.textContent = "Hiep TuVi AI — AUTO FULL REPORT";
       const resultNote = document.querySelector(".ai-result-location-note");
-      if (resultNote) resultNote.textContent = "Không cần API key/VPS. GitHub Pages chỉ host ứng dụng; model thực thi bằng WebGPU ngay trên thiết bị người dùng.";
+      if (resultNote) resultNote.textContent = "tuvi111 khóa dữ liệu an sao/Bát Tự; AI dùng knowledge pack Hiep Tuvi để diễn giải và tự chạy ngay sau khi lập lá số.";
     }
 
-    window.addEventListener("offline", () => window.toast?.("Đang ngoại tuyến - tuvi111 vẫn hoạt động; AI local dùng được nếu runtime/model đã có trong cache"));
+    window.addEventListener("offline", () => window.toast?.("Đang ngoại tuyến - tuvi111 vẫn hoạt động; AI dùng được nếu runtime/model đã cache"));
     window.addEventListener("online", () => window.toast?.("Đã kết nối lại mạng"));
   });
 })();
