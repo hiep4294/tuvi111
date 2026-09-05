@@ -1,7 +1,7 @@
 "use strict";
 
 (function initHiepBrowserAI(root) {
-  const VERSION = "1.1.1";
+  const VERSION = "1.1.2";
   const DEFAULT_MODEL = "Qwen3-4B-q4f16_1-MLC";
   const MODELS = Object.freeze([
     {
@@ -75,9 +75,7 @@
         if (task?.onProgress) task.onProgress(message.progress || {});
         return;
       }
-      if (message.type === "ready") {
-        loadedModel = String(message.model || loadedModel || "");
-      }
+      if (message.type === "ready") loadedModel = String(message.model || loadedModel || "");
       const task = pending.get(requestId);
       if (!task) return;
       pending.delete(requestId);
@@ -126,7 +124,9 @@
   async function generate(prompt, options = {}) {
     if (!String(prompt || "").trim()) throw new Error("Prompt AI local đang trống.");
     const selected = modelRecord(options.model || DEFAULT_MODEL).id;
-    const maxTokens = Math.max(256, Math.min(1800, Number(options.maxTokens || 1300)));
+    // Qwen3 models used here run with a 4096-token context in the WebLLM prebuilt config.
+    // Keep a hard generation ceiling so the evidence/prompt retains enough context headroom.
+    const maxTokens = Math.max(256, Math.min(1250, Number(options.maxTokens || 1150)));
     const temperature = Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0.2;
     const data = await request("generate", {
       model: selected,
