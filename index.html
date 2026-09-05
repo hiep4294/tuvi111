@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
-  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tổng luận cục bộ ngay trên thiết bị, không cần gửi dữ liệu ra ngoài.">
+  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tổng kết bằng AI local WebGPU ngay trên thiết bị.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <title>Tử Vi + Bát Tự — Web v1.18 tổng luận offline</title>
+  <title>Tử Vi + Bát Tự — Web v1.19 Local AI</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=1.18">
-  <link rel="stylesheet" href="styles-autonomous.css?v=1.18">
+  <link rel="stylesheet" href="styles.css?v=1.19">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.19">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">BẢN WEB ĐỘC LẬP · DỮ LIỆU XỬ LÝ TRÊN THIẾT BỊ</div>
+      <div class="eyebrow">WEB v1.19 · TUVI111 CỤC BỘ · AI LOCAL WEBGPU</div>
       <h1>Tử Vi + Bát Tự</h1>
-      <p>Bộ an sao tham chiếu · Bát Tự theo tiết khí · Lưu niên 9 sao tham chiếu · prompt AI</p>
+      <p>Tuvi111 tự lập lá số/Bát Tự · Hiep TuVi Local AI chỉ phản biện, kết luận và tổng kết trên GPU của máy người dùng.</p>
     </div>
     <div class="engine-state" id="engineState" aria-live="polite">
       <span class="state-dot"></span>
@@ -82,7 +82,7 @@
         <div class="progress-track"><div id="progressBar"></div></div>
         <small id="progressText">Đang tải bộ máy lần đầu...</small>
       </div>
-      <p class="privacy-note">Lá số và tổng luận được tạo ngay trên thiết bị. Sau khi tải đủ bộ máy lần đầu, chức năng chính không cần Gemini, API hoặc kết nối mạng.</p>
+      <p class="privacy-note">Lá số được tính cục bộ. AI local chạy bằng WebGPU trên chính máy đang mở trang; không cần Gemini/API key/VPS cho luồng chính.</p>
     </aside>
 
     <section class="workspace">
@@ -90,7 +90,7 @@
         <button class="tab-button active" data-tab="chart">Tử Vi + Bát Tự</button>
         <button class="tab-button" data-tab="relations">Quan hệ cung</button>
         <button class="tab-button" data-tab="combined">Tổng hợp</button>
-        <button class="tab-button" data-tab="prompt">Prompt tùy chọn</button>
+        <button class="tab-button" data-tab="prompt">AI local / Prompt</button>
         <button class="tab-button" data-tab="json">JSON</button>
       </nav>
 
@@ -121,17 +121,17 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">KHÔNG MẠNG · KHÔNG GỬI DỮ LIỆU</span>
-                  <h2>Tổng luận cục bộ</h2>
+                  <span class="section-kicker">TUVI111 TỰ TÍNH · AI CHỈ KẾT LUẬN</span>
+                  <h2>Hiep TuVi Local AI — kết luận & tổng kết</h2>
                 </div>
-                <span class="tag">Quy tắc cố định v1.18</span>
+                <span class="tag">WEBGPU · SUMMARY_ONLY</span>
               </div>
-              <div class="inline-gemini-actions" hidden>
-                <button id="runGeminiInlineButton" class="primary-button" type="button">Phân tích lại toàn bộ — 15 bước</button>
-                <span class="muted">Báo cáo được chia 4 lượt để dài và ít bị cắt: đủ 12 cung, các trục liên kết, lưu niên và Bát Tự.</span>
+              <div class="inline-gemini-actions">
+                <button id="runGeminiInlineButton" class="primary-button" type="button">AI local kết luận & tổng kết</button>
+                <span class="muted">Lần đầu sẽ tải model; các lần sau dùng cache trình duyệt. Nếu GPU yếu, hệ thống tự hạ model.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Tổng luận cục bộ sẽ xuất hiện ngay sau khi lập lá số.</p>
+                <p class="muted">Lập lá số trước, sau đó bấm AI local để tổng kết. Phần lập lá số/Bát Tự không phụ thuộc AI.</p>
               </div>
             </section>
 
@@ -183,39 +183,41 @@
           <button id="downloadPromptButton" type="button">Tải TXT</button>
         </div>
 
-        <textarea id="promptText" class="prompt-text" placeholder="Prompt sẽ xuất hiện tại đây. Có thể chỉnh trực tiếp trước khi gửi Gemini."></textarea>
+        <textarea id="promptText" class="prompt-text" placeholder="Prompt sẽ xuất hiện tại đây."></textarea>
 
-        <section class="card gemini-panel" hidden>
+        <section class="card gemini-panel">
           <div class="gemini-heading">
             <div>
-              <span class="section-kicker">AI LUẬN GIẢI</span>
-              <h2>Gemini</h2>
+              <span class="section-kicker">AI CHẠY TRÊN THIẾT BỊ</span>
+              <h2>Hiep TuVi Local AI</h2>
             </div>
-            <span id="geminiStatus" class="tag">Chưa cấu hình</span>
+            <span id="geminiStatus" class="tag">AI local · chưa kiểm tra</span>
           </div>
 
           <div class="gemini-settings">
-            <label>Địa chỉ Gemini Worker
-              <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://worker-cua-ban.example">
+            <label hidden>Địa chỉ fallback cloud
+              <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://worker.example">
             </label>
-            <label>Mô hình
-              <select id="geminiModel" disabled aria-label="Mô hình Gemini cố định">
-                <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash — cố định</option>
+            <label>Mô hình local
+              <select id="geminiModel" aria-label="Mô hình AI local">
+                <option value="Qwen3-4B-q4f16_1-MLC" selected>Qwen3 4B — mặc định</option>
+                <option value="Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B — máy yếu</option>
+                <option value="Qwen3-8B-q4f16_1-MLC">Qwen3 8B — máy mạnh</option>
               </select>
             </label>
-            <button id="saveGeminiSettingsButton" type="button">Lưu kết nối</button>
-            <button id="testGeminiButton" type="button">Kiểm tra</button>
+            <button id="saveGeminiSettingsButton" type="button" hidden>Lưu fallback</button>
+            <button id="testGeminiButton" type="button">Kiểm tra WebGPU</button>
           </div>
 
           <div class="gemini-actions">
-            <button id="runGeminiButton" class="primary-button" type="button">Phân tích lại toàn bộ — 15 bước</button>
+            <button id="runGeminiButton" class="primary-button" type="button">AI local kết luận & tổng kết</button>
             <button id="copyGeminiButton" type="button">Sao chép kết quả</button>
             <button id="downloadGeminiButton" type="button">Tải kết quả</button>
             <button id="clearGeminiButton" type="button">Xóa kết quả</button>
           </div>
 
           <div class="ai-result-location-note">
-            Sau khi bấm Lập lá số, hệ thống tự tạo báo cáo theo 15 bước và hiển thị ngay dưới Tứ Trụ. Nếu một bước lỗi, các bước còn lại vẫn tiếp tục.
+            GitHub Pages chỉ host ứng dụng. Model chạy bằng WebGPU trên thiết bị người dùng; không cần API key hay VPS cho luồng chính.
           </div>
         </section>
       </section>
@@ -232,12 +234,12 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.18 · Lá số và tổng luận cục bộ · Khung địa chi cố định · Lưu niên 9 sao theo lá số tham chiếu.</p>
+    <p>Web v1.19 · Tuvi111 deterministic · Hiep TuVi Local AI WebGPU · SUMMARY_ONLY.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=1.18" defer></script>
-  <script src="autonomous.js?v=1.18" defer></script>
-  <script src="offline-summary.js?v=1.18" defer></script>
+  <script src="app.js?v=1.19" defer></script>
+  <script src="autonomous.js?v=1.19" defer></script>
+  <script src="offline-summary.js?v=1.19" defer></script>
 </body>
 </html>
