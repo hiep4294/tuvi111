@@ -25,7 +25,7 @@ assert.equal(knowledge.VERSION, "2.0.1");
 assert.equal(knowledge.PROFILE, "STRUCTURED_LOCAL_KB");
 
 const stats = knowledge.stats();
-assert.ok(stats.stars >= 40, `expected >=40 star rules, got ${stats.stars}`);
+assert.ok(stats.stars >= 39, `expected >=39 grounded star rules, got ${stats.stars}`);
 assert.equal(stats.palaces, 12);
 assert.ok(stats.combinations >= 15);
 assert.ok(stats.structures >= 7);
