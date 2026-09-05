@@ -10,17 +10,19 @@ const specialist = readFileSync(join(root, "hiep-tuvi-ai.js"), "utf8");
 const browserAi = readFileSync(join(root, "browser-ai.js"), "utf8");
 const browserWorker = readFileSync(join(root, "browser-ai-worker.js"), "utf8");
 
-assert.match(autonomous, /hiep-tuvi-ai\.js\?v=1\.2\.0/);
+assert.match(autonomous, /hiep-tuvi-ai\.js\?v=2\.0\.0/);
 assert.match(autonomous, /browser-ai\.js\?v=1\.1\.1/);
 assert.match(autonomous, /__HIEP_TUVI_CHART__/);
 assert.match(autonomous, /HiepBrowserAI/);
-assert.match(autonomous, /buildBrowserSummaryPrompt/);
+assert.match(autonomous, /fullReportPlan/);
+assert.match(autonomous, /buildFullReportSectionPrompt/);
+assert.match(autonomous, /validateFullReportSection/);
 assert.match(autonomous, /requestLocalWithFallback/);
-assert.match(autonomous, /AI local kết luận & tổng kết/);
+assert.match(autonomous, /automatic:\s*true/);
+assert.match(autonomous, /AI luận giải lại/);
 assert.match(autonomous, /webGpuAvailable/);
-assert.match(autonomous, /final_summary_only/);
 assert.doesNotMatch(autonomous, /Phân tích chuyên sâu — 15 bước/);
-assert.doesNotMatch(autonomous, /originalRunGemini/);
+assert.doesNotMatch(autonomous, /if\s*\(options\.automatic\)\s*return/);
 
 assert.match(browserAi, /Qwen3-4B-q4f16_1-MLC/);
 assert.match(browserAi, /Qwen3-8B-q4f16_1-MLC/);
@@ -34,13 +36,15 @@ assert.match(browserWorker, /local:\s*true/);
 
 assert.match(serviceWorker, /\.\/browser-ai\.js/);
 assert.match(serviceWorker, /\.\/browser-ai-worker\.js/);
-assert.match(serviceWorker, /__hiep_ai_proxy__\/analyze/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.20-hiep-tuvi-auto-1/);
 
-assert.match(specialist, /SUMMARY_ONLY/);
-assert.match(specialist, /buildBrowserSummaryPrompt/);
-assert.match(specialist, /EVIDENCE NÉN TỪ TUVI111/);
-assert.match(specialist, /KẾT LUẬN VÀ TỔNG KẾT TOÀN BỘ/);
-assert.match(specialist, /Không viết lại 12 bài luận cung riêng/);
+assert.match(specialist, /HIEP_TUVI_FULL_REPORT/);
+assert.match(specialist, /fullReportPlan/);
+assert.match(specialist, /DATA QUALITY CARD/);
+assert.match(specialist, /Mệnh", "Phụ Mẫu", "Phúc Đức/);
+assert.match(specialist, /TỨ TRỤ BÁT TỰ \+ NGŨ HÀNH/);
+assert.match(specialist, /RED-TEAM \/ PHẢN BIỆN/);
+assert.match(specialist, /HÀNH ĐỘNG THỰC TẾ/);
 assert.doesNotMatch(specialist, /NHIỆM VỤ BƯỚC/);
 
-console.log("PASS: browser WebGPU AI is local-first and isolated to final synthesis");
+console.log("PASS: local WebGPU AI automatically generates a staged Hiep Tuvi full report");
