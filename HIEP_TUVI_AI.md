@@ -1,6 +1,6 @@
-# Hiep TuVi AI — AUTO FULL REPORT / WEBGPU
+# Hiep TuVi AI — AUTO FULL REPORT / KNOWLEDGE BASE V2 / WEBGPU
 
-`tuvi111` tự tính toàn bộ FACT/CALC kỹ thuật. Sau khi lập lá số xong, Hiep TuVi AI **tự chạy** trên WebGPU của thiết bị và viết báo cáo theo cấu trúc `@Hiep Tuvi`.
+`tuvi111` tự tính toàn bộ FACT/CALC kỹ thuật. Sau khi lập lá số xong, Hiep TuVi AI tự chạy trên WebGPU của thiết bị và viết báo cáo theo cấu trúc `@Hiep Tuvi`.
 
 Không cần VPS, API key hoặc Gemini cho luồng chính.
 
@@ -19,12 +19,68 @@ tuvi111 deterministic engine
   ↓
 FACT/CALC khóa
   ↓
-Hiep TuVi knowledge pack + Hiep TuVi prompt engine
+Hiep TuVi Knowledge Base V2
+  ├─ stars
+  ├─ palaces + geometry
+  ├─ combinations/formations
+  ├─ Tứ Hóa / Tuần-Triệt / Tràng Sinh / time layers
+  ├─ Bát Tự / Ngũ Hành
+  └─ schools + provenance + confidence
+  ↓
+Rule retriever chọn đúng rule liên quan
+  ↓
+Hiep TuVi prompt engine
   ↓
 Web Worker + WebLLM + WebGPU
   ↓
 AUTO FULL REPORT
 ```
+
+## Knowledge Base V2
+
+Dữ liệu được tách thành các module cùng repo:
+
+- `knowledge/stars.js` — 14 chính tinh + nhóm phụ/cát/sát/Tứ Hóa trọng yếu;
+- `knowledge/palaces.js` — 12 cung, tam hợp, đối cung và liên đới chủ đề;
+- `knowledge/combinations.js` — các bộ sao/cách cục và điều kiện hình học;
+- `knowledge/structures.js` — Ngũ Hành, tam phương, Tứ Hóa, Tuần/Triệt, Tràng Sinh, Mệnh–Thân, vận hạn, red-team;
+- `knowledge/bazi.js` — Bát Tự, Thập Thần, vượng suy, tương tác và chống shortcut;
+- `knowledge/schools.js` — `NAM_PHAI_TAM_HOP`, `TU_HOA`, `TRUNG_CHAU`, `CLASSICAL`, `MENH_LY_THIEN_CO` + provenance.
+
+`hiep-tuvi-knowledge.js` là retriever. Nó không đẩy toàn bộ dữ liệu vào Qwen. Với mỗi phần luận, retriever chỉ lấy:
+
+- rule của cung đang xét;
+- rule của sao thực sự xuất hiện trong cung/tam phương/đối cung;
+- bộ sao có đủ thành viên ứng viên để đáng kiểm tra;
+- Tứ Hóa/Tuần-Triệt/Tràng Sinh chỉ khi chart có dữ liệu liên quan;
+- Bát Tự và provenance chỉ ở đúng phần cần dùng.
+
+Mỗi rule quan trọng có tối thiểu:
+
+```text
+RULE-ID | SCHOOL | SOURCE_LEVEL | RULE_CONFIDENCE | điều kiện | ngoại lệ
+```
+
+Điều này giúp model local không phải “nhớ Tử Vi” bằng kiến thức huấn luyện chung.
+
+## Provenance
+
+Source level:
+
+- `A`: nguồn gốc/trường phái truy nguyên rõ;
+- `B`: bài giảng dài, có hệ thống;
+- `C`: tài liệu tổng hợp có cấu trúc;
+- `D`: clip ngắn/câu phú rời/nguồn thiếu bối cảnh.
+
+Rule confidence:
+
+- `CORE`
+- `SUPPORTED`
+- `CONDITIONAL`
+- `DISPUTED`
+- `WEAK`
+
+Nguồn D không được làm căn cứ duy nhất cho claim `STRONG`.
 
 ## Luồng người dùng
 
@@ -32,14 +88,14 @@ AUTO FULL REPORT
 2. Bấm **Lập lá số**.
 3. `tuvi111` tính và hiển thị lá số ngay.
 4. Hiep TuVi AI tự bắt đầu; không cần bấm nút AI.
-5. Báo cáo được ghi trực tiếp vào khu vực trước đây là **Tổng luận cục bộ**.
+5. Báo cáo được ghi trực tiếp vào khu vực tổng luận.
 6. Nút **AI luận giải lại** chỉ dùng khi muốn chạy lại.
 
 Nếu WebGPU/model không chạy được, bản tổng luận quy tắc cục bộ vẫn được giữ làm fallback.
 
 ## Vì sao chia 8 lượt nội bộ?
 
-Qwen3 4B trong WebLLM dùng context 4096 token. Để không làm mất evidence hoặc cắt phần trả lời, báo cáo được chia nội bộ thành **8 lượt nhỏ**, nhưng UI ghép thành một báo cáo liên tục:
+Qwen3 4B trong WebLLM dùng context 4096 token. Báo cáo được chia nội bộ thành 8 lượt nhỏ nhưng UI ghép thành một báo cáo liên tục:
 
 1. Data Quality + Mệnh + Phụ Mẫu.
 2. Phúc Đức + Điền Trạch.
@@ -50,7 +106,7 @@ Qwen3 4B trong WebLLM dùng context 4096 token. Để không làm mất evidence
 7. Tứ Trụ Bát Tự + Ngũ Hành Âm Dương.
 8. Đối chiếu hệ + Red-team + Tổng kết + Hành động + 3–5 góc nhìn dễ bỏ sót.
 
-Như vậy vẫn giữ quy tắc cứng: **đủ 12 cung trước Bát Tự và tổng kết**.
+Quy tắc cứng: đủ 12 cung trước Bát Tự và tổng kết.
 
 ## Chuẩn mỗi cung
 
@@ -71,51 +127,11 @@ AI phải đi qua:
 
 AI không được dùng “một sao = một kết luận”.
 
-## Knowledge pack Hiep Tuvi
-
-`hiep-tuvi-knowledge.js` cung cấp cho model local:
-
-- phạm vi 12 cung;
-- lõi nghĩa 14 chính tinh;
-- nhóm phụ tinh/cát/sát tinh có sức cấu trúc;
-- bộ sao như Tử Phủ Vũ Tướng, Sát Phá Tham, Cơ Nguyệt Đồng Lương, Nhật Nguyệt, Cơ Cự, Cự Nhật, Cơ Lương, Vũ Tham, Liêm Tham, Liêm Sát, Khoa Quyền Lộc, Lộc Mã, Xương Khúc, Khôi Việt, Tả Hữu, Không Kiếp, Kình Đà, Hỏa Linh, Hình Kỵ;
-- Tứ Hóa có hướng;
-- Tuần/Triệt;
-- Tràng Sinh;
-- Mệnh–Thân;
-- quy tắc Bát Tự và red-team.
-
-Knowledge pack **không nạp toàn bộ vào mọi request**. Hệ thống chỉ chọn các sao/bộ sao liên quan tới 2 cung đang luận và quan hệ tam phương/đối cung của chúng để giữ context gọn.
-
 ## Bát Tự
 
-Sau đủ 12 cung mới đến Bát Tự:
+Sau đủ 12 cung mới đến Bát Tự: 4 trụ → Nhật chủ → tháng lệnh/khí mùa → vượng suy → can chi → hợp/xung/hình/hại/phá → Thập Thần → dụng/hỷ/kỵ khi đủ evidence → đại vận → sensitivity giờ/tiết khí → Ngũ Hành.
 
-- 4 trụ;
-- Nhật chủ;
-- tháng lệnh / khí mùa;
-- vượng suy;
-- can chi và tương tác;
-- Thập Thần;
-- dụng/hỷ/kỵ chỉ khi evidence đủ;
-- đại vận;
-- sensitivity giờ sinh / tiết khí;
-- Ngũ Hành Âm Dương.
-
-Không dùng cách “thiếu hành nào bổ hành đó”.
-
-## Red-team và tổng kết
-
-Phần cuối kiểm:
-
-- cherry-picking;
-- đọc một sao độc lập;
-- cách cục thiếu điều kiện;
-- trộn nguyên cục/lưu niên;
-- dependency chung giữa Tử Vi và Bát Tự;
-- khác biệt trường phái.
-
-Nếu phản biện đúng, AI phải hạ hoặc sửa kết luận.
+Không dùng cách “thiếu hành nào bổ hành đó”. Không đếm hành cơ học để kết luận vượng suy.
 
 ## Model local
 
@@ -123,30 +139,11 @@ Nếu phản biện đúng, AI phải hạ hoặc sửa kết luận.
 - `Qwen3-4B-q4f16_1-MLC` — mặc định.
 - `Qwen3-8B-q4f16_1-MLC` — máy mạnh.
 
-Nếu model đã chọn không chạy được, hệ thống tự thử model nhẹ hơn. Controller giới hạn tối đa 1250 output token/lượt để chừa context cho evidence/knowledge.
+Nếu model đã chọn không chạy được, hệ thống tự thử model nhẹ hơn. Controller giới hạn output mỗi lượt để chừa context cho FACT/CALC + knowledge.
 
-## Ranh giới trách nhiệm
+## Offline
 
-### `tuvi111`
-
-Tính FACT/CALC. AI không được sửa các dữ kiện này.
-
-### Hiep TuVi AI
-
-Chỉ diễn giải và tổng hợp FACT/CALC đã khóa. Không tự an lại sao, đổi vị trí cung, đổi Can Chi/Cục/Tứ Hóa/Tràng Sinh hoặc bịa dữ liệu thiếu.
-
-## Trẻ em
-
-Nếu chủ thể dưới 18 tuổi, AI ưu tiên khí chất, học tập, tự điều tiết, môi trường và cách cha mẹ hỗ trợ. Không dự đoán cứng nghề nghiệp, hôn nhân, tài chính hoặc bệnh tật tương lai; phần cuối có gợi ý nuôi dạy thực tế và điều nên tránh.
-
-## File chính
-
-- `hiep-tuvi-ai.js` — kế hoạch 8 phần, evidence nén, prompt Hiep Tuvi, quality gate.
-- `hiep-tuvi-knowledge.js` — knowledge pack theo sao/cung liên quan.
-- `autonomous.js` — tự kích hoạt AI sau `generate`, xử lý hủy báo cáo cũ và ghép các phần.
-- `browser-ai.js` / `browser-ai-worker.js` — WebLLM + WebGPU.
-- `offline-summary.js` — fallback quy tắc cục bộ.
-- `service-worker.js` — cache runtime.
+Service Worker cache toàn bộ Knowledge Base V2 cùng engine và ứng dụng. Sau khi runtime/model WebLLM đã được tải vào cache trình duyệt, phần rule Tử Vi/Bát Tự không cần gọi API ngoài.
 
 ## Test
 
@@ -160,8 +157,8 @@ Gate chính:
 - đủ 12 cung trước Bát Tự/tổng kết;
 - 2 cung/lượt để bảo vệ context;
 - tự chạy sau khi lập lá số;
-- Data Quality có trước 12 cung;
-- mỗi cung có relationship stack;
-- có Bát Tự/Ngũ Hành, Red-team, tổng kết, hành động và góc nhìn bổ sung;
-- knowledge pack chỉ nạp phần liên quan;
+- rule retriever chỉ lấy rule liên quan;
+- rule có SCHOOL/provenance/confidence;
+- knowledge pack bị giới hạn kích thước;
+- tất cả module KB nằm trong offline cache;
 - engine deterministic không bị AI sửa.

@@ -52,11 +52,17 @@ assert.ok(success.stored.includes("./engine.zip"));
 assert.ok(success.stored.includes("./offline-summary.js"));
 assert.ok(success.stored.includes("./hiep-tuvi-ai.js"));
 assert.ok(success.stored.includes("./hiep-tuvi-knowledge.js"));
+assert.ok(success.stored.includes("./knowledge/stars.js"));
+assert.ok(success.stored.includes("./knowledge/palaces.js"));
+assert.ok(success.stored.includes("./knowledge/combinations.js"));
+assert.ok(success.stored.includes("./knowledge/structures.js"));
+assert.ok(success.stored.includes("./knowledge/bazi.js"));
+assert.ok(success.stored.includes("./knowledge/schools.js"));
 assert.ok(success.stored.includes("./browser-ai.js"));
 assert.ok(success.stored.includes("./browser-ai-worker.js"));
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./hiep-tuvi-knowledge.js");
+const failure = createHarness("./knowledge/stars.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires deterministic engine, Hiep Tuvi knowledge, and browser AI runtime files");
+console.log("PASS: service worker requires deterministic engine, structured KB V2, and browser AI runtime files");

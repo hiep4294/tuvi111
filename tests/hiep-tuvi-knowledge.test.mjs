@@ -8,10 +8,19 @@ import vm from "node:vm";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
 const ai = require(join(root, "hiep-tuvi-ai.js"));
-const knowledgeSource = readFileSync(join(root, "hiep-tuvi-knowledge.js"), "utf8");
 const context = { console };
 context.globalThis = context;
-vm.runInNewContext(knowledgeSource, context, { filename: "hiep-tuvi-knowledge.js" });
+for (const file of [
+  "knowledge/stars.js",
+  "knowledge/palaces.js",
+  "knowledge/combinations.js",
+  "knowledge/structures.js",
+  "knowledge/bazi.js",
+  "knowledge/schools.js",
+  "hiep-tuvi-knowledge.js",
+]) {
+  vm.runInNewContext(readFileSync(join(root, file), "utf8"), context, { filename:file });
+}
 const knowledge = context.HiepTuViKnowledge;
 
 const chart = {
@@ -22,6 +31,7 @@ const chart = {
       { saoTen: "Phá Quân", saoDacTinh: "Miếu", nature: "main", element_name: "Thủy" },
       { saoTen: "Hóa Quyền", nature: "good", element_name: "Thủy" },
       { saoTen: "Kình Dương", nature: "bad", element_name: "Kim" },
+      { saoTen: "Đế Vượng", nature: "trang_sinh", element_name: "Thủy" },
     ] },
     { palace_name: "Phụ Mẫu", branch_name: "Sửu", branch_id: 2, element_name: "Thổ", stars: [
       { saoTen: "Thiên Phủ", nature: "main", element_name: "Thổ" },
@@ -43,22 +53,25 @@ const chart = {
   },
 };
 
-assert.equal(knowledge.VERSION, "1.1.0");
+assert.equal(knowledge.VERSION, "2.0.1");
 const job = ai.fullReportPlan()[0];
 const pack = knowledge.forJob(chart, job);
-assert.match(pack, /Mệnh:/);
-assert.match(pack, /Phá Quân:/);
-assert.match(pack, /Sát Phá Tham/);
-assert.match(pack, /Thiên Tướng:/);
-assert.doesNotMatch(pack, /Văn Xương:/);
-assert.ok(pack.length <= 3800, `knowledge pack must be capped, got ${pack.length}`);
+assert.match(pack, /PAL-MENH-001/);
+assert.match(pack, /STAR-PHAQUAN-001/);
+assert.match(pack, /COMBO-SATPHATHAM-001/);
+assert.match(pack, /STAR-THIENTUONG-001/);
+assert.doesNotMatch(pack, /STAR-VANXUONG-001/);
+assert.match(pack, /SRC:C/);
+assert.match(pack, /CONF:/);
+assert.ok(pack.length <= 4600, `knowledge pack must be capped, got ${pack.length}`);
 
 const prompt = ai.buildFullReportSectionPrompt(chart, job, { subjectKind: "adult" });
 const combined = `${prompt}\n${pack}`;
-assert.ok(combined.length < 10000, `prompt + knowledge should preserve Qwen 4K headroom, got ${combined.length} chars`);
+assert.ok(combined.length < 12000, `prompt + knowledge should preserve Qwen 4K headroom, got ${combined.length} chars`);
 
 const baziPack = knowledge.forJob(chart, { kind: "bazi" });
 assert.match(baziPack, /Nhật chủ/);
-assert.match(baziPack, /không “thiếu gì bổ nấy”/i);
+assert.match(baziPack, /Không thiếu hành nào bổ hành đó/);
+assert.match(baziPack, /INDEPENDENCE CHECK/);
 
-console.log("PASS: Hiep Tuvi knowledge is relevance-filtered and context-bounded");
+console.log("PASS: Hiep Tuvi KB V2 remains relevance-filtered, provenance-aware, and context-bounded");
