@@ -50,11 +50,13 @@ const success = createHarness();
 await runInstall(success);
 assert.ok(success.stored.includes("./engine.zip"));
 assert.ok(success.stored.includes("./offline-summary.js"));
+assert.ok(success.stored.includes("./hiep-tuvi-ai.js"));
+assert.ok(success.stored.includes("./hiep-tuvi-knowledge.js"));
 assert.ok(success.stored.includes("./browser-ai.js"));
 assert.ok(success.stored.includes("./browser-ai-worker.js"));
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./browser-ai-worker.js");
+const failure = createHarness("./hiep-tuvi-knowledge.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires deterministic engine plus browser AI runtime files");
+console.log("PASS: service worker requires deterministic engine, Hiep Tuvi knowledge, and browser AI runtime files");
