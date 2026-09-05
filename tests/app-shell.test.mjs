@@ -31,10 +31,11 @@ assert.match(app, /renderOfflineSummary\(state\.chart\)/);
 assert.doesNotMatch(app, /runGeminiAnalysis\(\{ automatic: true \}\)/);
 assert.match(worker, /vendor\/pyodide/);
 assert.doesNotMatch(html + app + worker, /spring-bonus-6dfb|cdn\.jsdelivr\.net/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.20-hiep-tuvi-auto-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.20-hiep-tuvi-auto-2/);
+assert.match(serviceWorker, /hiep-tuvi-knowledge\.js/);
 assert.match(serviceWorker, /browser-ai-worker\.js/);
 assert.match(serviceWorker, /vendor\/pyodide\/pyodide\.asm\.wasm/);
 assert.match(autonomousStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 assert.match(autonomousStyles, /overflow-x:\s*hidden/);
 
-console.log("PASS: v1.20 shell visibly exposes automatic Hiep Tuvi full-report AI");
+console.log("PASS: v1.20 shell visibly exposes automatic knowledge-grounded Hiep Tuvi full-report AI");
