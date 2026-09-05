@@ -60,7 +60,7 @@ assert.match(specialist, /TỨ TRỤ BÁT TỰ \+ NGŨ HÀNH/);
 assert.match(specialist, /RED-TEAM \/ PHẢN BIỆN/);
 assert.match(specialist, /HÀNH ĐỘNG THỰC TẾ/);
 
-assert.match(knowledge, /VERSION = "2\.0\.0"/);
+assert.match(knowledge, /VERSION = "2\.0\.1"/);
 assert.match(knowledge, /STRUCTURED_LOCAL_KB/);
 assert.match(knowledge, /ruleById/);
 assert.match(knowledge, /knowledgeForPalaces/);
@@ -71,7 +71,7 @@ assert.match(stars, /STAR-HOAKY-001/);
 assert.match(palaces, /PAL-MENH-001/);
 assert.match(palaces, /Mệnh.*Quan Lộc.*Tài Bạch/);
 assert.match(combinations, /COMBO-SATPHATHAM-001/);
-assert.match(combinations, /complete|partial|broken/i);
+assert.match(structures, /complete\|partial\|broken/i);
 assert.match(structures, /source layer\/can → carrier star/);
 assert.match(structures, /Tuần\/Triệt là bộ điều biến/);
 assert.match(bazi, /BAZI-SEASON-001/);
