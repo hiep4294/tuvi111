@@ -21,7 +21,7 @@ for (const file of [
 }
 
 const knowledge = context.HiepTuViKnowledge;
-assert.equal(knowledge.VERSION, "2.0.0");
+assert.equal(knowledge.VERSION, "2.0.1");
 assert.equal(knowledge.PROFILE, "STRUCTURED_LOCAL_KB");
 
 const stats = knowledge.stats();
