@@ -53,7 +53,7 @@ const chart = {
   },
 };
 
-assert.equal(knowledge.VERSION, "2.0.0");
+assert.equal(knowledge.VERSION, "2.0.1");
 const job = ai.fullReportPlan()[0];
 const pack = knowledge.forJob(chart, job);
 assert.match(pack, /PAL-MENH-001/);
