@@ -1,7 +1,7 @@
 "use strict";
 
 (function initHiepTuViKnowledge(root) {
-  const VERSION = "2.0.0";
+  const VERSION = "2.0.1";
   const PROFILE = "STRUCTURED_LOCAL_KB";
 
   function normalize(value) {
@@ -81,7 +81,7 @@
     return (kb().palaces || []).find((rule) => normalize(rule.name) === normalize(name)) || null;
   }
 
-  function starRulesForSet(starSet, limit = 14) {
+  function starRulesForSet(starSet, limit = 10) {
     const priorities = { main:0, transformation:1, pressure:2, resource:3, movement:3, support:4, social:5 };
     return (kb().stars || [])
       .filter((rule) => [...starSet].some((name) => normalize(name) === normalize(rule.name)))
@@ -89,7 +89,7 @@
       .slice(0, limit);
   }
 
-  function relevantCombos(starSet, limit = 7) {
+  function relevantCombos(starSet, limit = 5) {
     const normalizedStars = new Set([...starSet].map(normalize));
     return (kb().combinations || [])
       .map((combo) => ({
@@ -116,27 +116,12 @@
   }
 
   function structuralLines() {
-    return (kb().structures || []).slice(0, 7).map((rule) => `- ${tag(rule)} ${rule.topic}: ${rule.rule}`);
+    return (kb().structures || []).slice(0, 5).map((rule) => `- ${tag(rule)} ${rule.topic}: ${rule.rule}`);
   }
 
-  function knowledgeForPalaces(chart, names) {
+  function priorityStructureLines(chart, names, stars) {
     const data = kb();
-    const stars = collectRelevantStars(chart, names);
-    const palaceLines = (names || []).map((name) => formatPalaceRule(palaceRule(name))).filter(Boolean);
-    const starLines = starRulesForSet(stars).map(formatStarRule);
-    const comboLines = relevantCombos(stars).map(formatCombo);
-    const lines = [
-      "### HIEP TUVI KNOWLEDGE BASE V2 — RULES TRUY XUẤT THEO LÁ SỐ",
-      "Chỉ dùng các rule dưới đây để hỗ trợ diễn giải; FACT/CALC của tuvi111 luôn ưu tiên hơn knowledge rule.",
-      "PALACE RULES:",
-      ...(palaceLines.length ? palaceLines : ["- Không có palace rule phù hợp; hạ confidence."]),
-      "STAR RULES — native meaning, không phải verdict:",
-      ...(starLines.length ? starLines : ["- Không có rule sao chuyên biệt; không bịa nghĩa bổ sung."]),
-      ...(comboLines.length ? ["COMBINATION / FORMATION CANDIDATES — phải kiểm hình học trước khi gọi cách:", ...comboLines] : []),
-      "STRUCTURAL RULES:",
-      ...structuralLines(),
-    ];
-
+    const lines = [];
     if ([...stars].some((name) => /^Hóa /i.test(name))) {
       const th = data.tuHoa;
       lines.push(`TỨ HÓA [TU_HOA|SRC:${th?.source_level || "?"}|CONF:${th?.confidence || "?"}]: ${th?.network_rule || "source→carrier→cung→geometry→net effect"}. Anti=${(th?.anti_patterns || []).join(" ")}`);
@@ -149,6 +134,27 @@
       const ts = data.trangSinh;
       lines.push(`TRÀNG SINH [${ts?.school || "CLASSICAL"}|SRC:${ts?.source_level || "?"}|CONF:${ts?.confidence || "?"}]: ${ts?.rule || "pha khí/nhịp phát triển"}. Anti=${(ts?.anti_patterns || []).join("; ")}`);
     }
+    return lines;
+  }
+
+  function knowledgeForPalaces(chart, names) {
+    const stars = collectRelevantStars(chart, names);
+    const palaceLines = (names || []).map((name) => formatPalaceRule(palaceRule(name))).filter(Boolean);
+    const starLines = starRulesForSet(stars).map(formatStarRule);
+    const comboLines = relevantCombos(stars).map(formatCombo);
+    const priorityLines = priorityStructureLines(chart, names, stars);
+    const lines = [
+      "### HIEP TUVI KNOWLEDGE BASE V2 — RULES TRUY XUẤT THEO LÁ SỐ",
+      "Chỉ dùng các rule dưới đây để hỗ trợ diễn giải; FACT/CALC của tuvi111 luôn ưu tiên hơn knowledge rule.",
+      "PALACE RULES:",
+      ...(palaceLines.length ? palaceLines : ["- Không có palace rule phù hợp; hạ confidence."]),
+      ...(priorityLines.length ? ["PRIORITY STRUCTURE RULES:", ...priorityLines] : []),
+      "STAR RULES — native meaning, không phải verdict:",
+      ...(starLines.length ? starLines : ["- Không có rule sao chuyên biệt; không bịa nghĩa bổ sung."]),
+      ...(comboLines.length ? ["COMBINATION / FORMATION CANDIDATES — phải kiểm hình học trước khi gọi cách:", ...comboLines] : []),
+      "STRUCTURAL RULES:",
+      ...structuralLines(),
+    ];
     return clip(lines.join("\n"), 4600);
   }
 
