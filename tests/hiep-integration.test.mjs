@@ -55,7 +55,7 @@ assert.match(serviceWorker, /\.\/knowledge\/all-stars\.js/);
 assert.match(serviceWorker, /\.\/webgpu-failure-guard\.js/);
 assert.match(serviceWorker, /\.\/browser-ai\.js/);
 assert.match(serviceWorker, /\.\/browser-ai-worker\.js/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.22-local-full-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.22-mobile-safe-2/);
 
 assert.match(specialist, /VERSION = "2\.1\.0"/);
 assert.match(specialist, /HIEP_TUVI_FULL_REPORT/);
@@ -90,6 +90,8 @@ assert.match(offline, /XII/);
 assert.match(offline, /có tình cảm và nhu cầu gắn kết/);
 assert.match(guard, /Invalid ShaderModule|index_kernel/);
 assert.match(guard, /WebGPU không tương thích · dùng báo cáo local đầy đủ/);
+assert.match(guard, /mobile-memory-guard/);
+assert.match(guard, /isMobileLike/);
 assert.doesNotMatch(specialist + knowledge + offline, /NHIỆM VỤ BƯỚC/);
 
-console.log("PASS: deterministic local full report is guaranteed while WebGPU AI remains an optional enhancement");
+console.log("PASS: deterministic local report survives mobile WebGPU safety mode");

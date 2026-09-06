@@ -37,14 +37,15 @@ assert.match(app, /renderOfflineSummary\(state\.chart\)/);
 assert.doesNotMatch(app, /runGeminiAnalysis\(\{ automatic: true \}\)/);
 assert.match(worker, /vendor\/pyodide/);
 assert.doesNotMatch(html + app + worker, /spring-bonus-6dfb|cdn\.jsdelivr\.net/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.22-local-full-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.22-mobile-safe-2/);
 assert.match(serviceWorker, /knowledge\/minor-stars\.js/);
 assert.match(serviceWorker, /knowledge\/all-stars\.js/);
 assert.match(serviceWorker, /webgpu-failure-guard\.js/);
 assert.match(serviceWorker, /vendor\/pyodide\/pyodide\.asm\.wasm/);
 assert.match(guard, /Invalid ShaderModule|index_kernel/);
 assert.match(guard, /báo cáo Hiep TuVi cục bộ đầy đủ/);
+assert.match(guard, /mobile-memory-guard/);
 assert.match(autonomousStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 assert.match(autonomousStyles, /overflow-x:\s*hidden/);
 
-console.log("PASS: v1.22 guarantees a detailed local Hiep TuVi report and treats WebGPU AI as optional");
+console.log("PASS: v1.22 mobile-safe mode keeps detailed local report and WebGPU AI optional");
