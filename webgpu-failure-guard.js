@@ -15,6 +15,39 @@
     catch (_) {}
   }
 
+  function userAgentText() {
+    try { return String(navigator.userAgent || ""); }
+    catch (_) { return ""; }
+  }
+
+  function isMobileLike() {
+    try {
+      if (navigator.userAgentData?.mobile) return true;
+      const ua = userAgentText();
+      if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+      // iPadOS can present a desktop/Macintosh user agent.
+      if (/Macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1) return true;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function isLowMemoryDevice() {
+    try {
+      const memoryGb = Number(navigator.deviceMemory || 0);
+      return memoryGb > 0 && memoryGb < 8;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function skipAutomaticAiReason() {
+    if (isMobileLike()) return "mobile";
+    if (isLowMemoryDevice()) return "low-memory";
+    return "";
+  }
+
   function isShaderFailure(text) {
     return /Invalid ShaderModule|index_kernel|shader module|shader compilation/i.test(String(text || ""));
   }
@@ -35,10 +68,30 @@
     warning.insertAdjacentElement?.("afterend", details);
   }
 
+  function showMobileSafeMode() {
+    window.setGeminiStatus?.("Điện thoại: AI WebGPU đã tắt để tránh quá tải RAM", "ready");
+    window.toast?.("Đã giữ chế độ ổn định trên điện thoại; báo cáo Hiep TuVi cục bộ vẫn đầy đủ.");
+  }
+
   window.runGeminiAnalysis = async function guardedHiepTuViAnalysis(options = {}) {
-    if (options.automatic && blocked()) {
+    const automatic = Boolean(options.automatic);
+    const constrainedReason = skipAutomaticAiReason();
+
+    // Critical mobile stability guard: local Qwen models need multiple GB of GPU/RAM.
+    // Safari/iOS can terminate the whole WebContent process before JS gets an exception.
+    if (isMobileLike()) {
+      showMobileSafeMode();
+      return { skipped: true, reason: "mobile-memory-guard" };
+    }
+
+    if (automatic && constrainedReason) {
+      window.setGeminiStatus?.("Thiết bị RAM thấp: dùng báo cáo local đầy đủ", "ready");
+      return { skipped: true, reason: constrainedReason };
+    }
+
+    if (automatic && blocked()) {
       window.setGeminiStatus?.("WebGPU không tương thích · dùng báo cáo local đầy đủ", "ready");
-      return;
+      return { skipped: true, reason: "webgpu-session-blocked" };
     }
 
     const result = await original.call(this, options);
@@ -51,4 +104,10 @@
     }
     return result;
   };
+
+  window.HiepWebGpuFailureGuard = Object.freeze({
+    isMobileLike,
+    isLowMemoryDevice,
+    skipAutomaticAiReason,
+  });
 })();
