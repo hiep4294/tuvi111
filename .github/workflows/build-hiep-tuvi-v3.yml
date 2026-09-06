@@ -1,0 +1,71 @@
+name: Build Hiep TuVi DB V3
+
+on:
+  push:
+    branches:
+      - feature/hiep-tuvi-db-v3-generated-20260906
+    paths:
+      - "tools/extract-hiep-tuvi-stars-v3.js"
+      - "tools/build-hiep-tuvi-db-v3.py"
+      - ".github/workflows/build-hiep-tuvi-v3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract current knowledge catalog
+        run: node tools/extract-hiep-tuvi-stars-v3.js
+
+      - name: Build Nam Phai SQLite V3
+        run: python3 tools/build-hiep-tuvi-db-v3.py
+
+      - name: Validate generated runtime
+        run: |
+          set -e
+          node --check knowledge/all-stars.js
+          node test/hiep-tuvi-db-v3.test.js
+          python3 - <<'PY'
+          import sqlite3
+          p="knowledge/db/v3/hiep_tuvi_stars_v3.sqlite"
+          con=sqlite3.connect(p)
+          assert con.execute("pragma integrity_check").fetchone()[0]=="ok"
+          assert con.execute("select count(*) from stars").fetchone()[0]==122
+          assert con.execute("select count(*) from star_profiles where school_id='NAM_PHAI_TAM_HOP'").fetchone()[0]==122
+          assert con.execute("select count(*) from star_palace_templates where school_id='NAM_PHAI_TAM_HOP'").fetchone()[0]==1464
+          assert con.execute("select count(*) from star_interaction_templates where school_id='NAM_PHAI_TAM_HOP'").fetchone()[0]==488
+          assert con.execute("select count(*) from tu_hoa_mappings where school='NAM_PHAI_TAM_HOP'").fetchone()[0]==40
+          assert con.execute("select count(*) from validation where status!='PASS'").fetchone()[0]==0
+          print("SQLite V3 PASS")
+          PY
+
+      - name: Run repository tests
+        shell: bash
+        run: |
+          set -e
+          if [ -f package.json ]; then
+            npm install --ignore-scripts
+            npm test
+          fi
+
+      - name: Commit generated V3 database
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add knowledge/all-stars.js knowledge/db/v3 test/hiep-tuvi-db-v3.test.js tools/extract-hiep-tuvi-stars-v3.js tools/build-hiep-tuvi-db-v3.py
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "feat: integrate Hiep TuVi star database V3"
+          git push
