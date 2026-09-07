@@ -1,23 +1,32 @@
 "use strict";
 
-import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
-
+const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
 const MODEL_ID = "onnx-community/Qwen2.5-0.5B-Instruct";
 const DTYPE = "q8";
 let generator = null;
 let loadingPromise = null;
+let transformersPromise = null;
 
-// GitHub Pages cannot set COOP/COEP headers, so WASM threads may be unavailable.
-// Keep a single-thread compatibility path unless the browser is cross-origin isolated.
-try {
-  env.useBrowserCache = true;
-  env.allowRemoteModels = true;
-  if (env.backends?.onnx?.wasm) {
-    env.backends.onnx.wasm.numThreads = self.crossOriginIsolated
-      ? Math.max(1, Math.min(4, Number(self.navigator?.hardwareConcurrency || 2)))
-      : 1;
+async function loadTransformers() {
+  if (!transformersPromise) {
+    transformersPromise = import(TRANSFORMERS_URL).then((mod) => {
+      try {
+        mod.env.useBrowserCache = true;
+        mod.env.allowRemoteModels = true;
+        if (mod.env.backends?.onnx?.wasm) {
+          mod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated
+            ? Math.max(1, Math.min(4, Number(self.navigator?.hardwareConcurrency || 2)))
+            : 1;
+        }
+      } catch (_) {}
+      return mod;
+    }).catch((error) => {
+      transformersPromise = null;
+      throw error;
+    });
   }
-} catch (_) {}
+  return transformersPromise;
+}
 
 function postProgress(requestId, info = {}) {
   const progress = Number(info.progress);
@@ -38,6 +47,7 @@ function postProgress(requestId, info = {}) {
 async function ensureGenerator(requestId) {
   if (generator) return generator;
   if (loadingPromise) return loadingPromise;
+  const { pipeline } = await loadTransformers();
   loadingPromise = pipeline("text-generation", MODEL_ID, {
     device: "wasm",
     dtype: DTYPE,
