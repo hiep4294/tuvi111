@@ -15,6 +15,11 @@
     catch (_) {}
   }
 
+  function clearBlocked() {
+    try { sessionStorage.removeItem(SESSION_KEY); }
+    catch (_) {}
+  }
+
   function userAgentText() {
     try { return String(navigator.userAgent || ""); }
     catch (_) { return ""; }
@@ -25,7 +30,6 @@
       if (navigator.userAgentData?.mobile) return true;
       const ua = userAgentText();
       if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
-      // iPadOS can present a desktop/Macintosh user agent.
       if (/Macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1) return true;
       return false;
     } catch (_) {
@@ -57,7 +61,7 @@
     if (!output) return;
     const warning = output.querySelector?.(".ai-error");
     if (!warning) return;
-    warning.textContent = "GPU/driver hiện tại không chạy được model WebGPU. Phần dưới vẫn là báo cáo Hiep TuVi cục bộ đầy đủ: đủ 12 cung, Bát Tự, phản biện và tổng kết.";
+    warning.textContent = "WebGPU/GPU driver không tương thích. Đang chuyển sang AI CPU/WASM; báo cáo Local Rules đầy đủ vẫn được giữ làm dự phòng.";
     const details = document.createElement("details");
     details.className = "ai-tech-details";
     const summary = document.createElement("summary");
@@ -68,29 +72,27 @@
     warning.insertAdjacentElement?.("afterend", details);
   }
 
-  function showMobileSafeMode() {
-    window.setGeminiStatus?.("Điện thoại: AI WebGPU đã tắt để tránh quá tải RAM", "ready");
-    window.toast?.("Đã giữ chế độ ổn định trên điện thoại; báo cáo Hiep TuVi cục bộ vẫn đầy đủ.");
+  function showConstrainedMode(reason) {
+    const label = reason === "mobile" ? "Thiết bị di động" : "Thiết bị RAM thấp";
+    window.setGeminiStatus?.(`${label}: bỏ qua model WebGPU · chuẩn bị AI CPU/WASM`, "busy");
   }
 
   window.runGeminiAnalysis = async function guardedHiepTuViAnalysis(options = {}) {
     const automatic = Boolean(options.automatic);
     const constrainedReason = skipAutomaticAiReason();
 
-    // Critical mobile stability guard: local Qwen models need multiple GB of GPU/RAM.
-    // Safari/iOS can terminate the whole WebContent process before JS gets an exception.
+    // Do not start a multi-GB WebGPU model when memory pressure is predictable.
+    // The CPU/WASM router loaded after this guard will take over with the 0.5B model.
     if (isMobileLike()) {
-      showMobileSafeMode();
+      showConstrainedMode("mobile");
       return { skipped: true, reason: "mobile-memory-guard" };
     }
-
     if (automatic && constrainedReason) {
-      window.setGeminiStatus?.("Thiết bị RAM thấp: dùng báo cáo local đầy đủ", "ready");
+      showConstrainedMode(constrainedReason);
       return { skipped: true, reason: constrainedReason };
     }
-
-    if (automatic && blocked()) {
-      window.setGeminiStatus?.("WebGPU không tương thích · dùng báo cáo local đầy đủ", "ready");
+    if (blocked()) {
+      window.setGeminiStatus?.("WebGPU đã bị chặn trong phiên · chuyển AI CPU/WASM", "busy");
       return { skipped: true, reason: "webgpu-session-blocked" };
     }
 
@@ -100,7 +102,8 @@
     if (isShaderFailure(text)) {
       markBlocked();
       softenShaderFailure(text);
-      window.setGeminiStatus?.("Đã chuyển sang Hiep TuVi Local Rules", "ready");
+      window.setGeminiStatus?.("WebGPU lỗi shader · chuyển AI CPU/WASM", "busy");
+      return { ...(result || {}), webgpuFailed: true, reason: "shader-failure" };
     }
     return result;
   };
@@ -109,5 +112,9 @@
     isMobileLike,
     isLowMemoryDevice,
     skipAutomaticAiReason,
+    isShaderFailure,
+    webGpuBlocked: blocked,
+    markGpuBlocked: markBlocked,
+    clearGpuBlocked: clearBlocked,
   });
 })();

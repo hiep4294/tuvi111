@@ -1,4 +1,4 @@
-const CACHE = "tuvi-battu-web-v1.22-mobile-safe-2";
+const CACHE = "tuvi-battu-web-v1.23-cpu-wasm-fallback-1";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const CORE_ASSETS = [
   "./app.js",
   "./autonomous.js",
   "./webgpu-failure-guard.js",
+  "./cpu-ai-fallback.js",
   "./offline-summary.js",
   "./hiep-tuvi-ai.js",
   "./hiep-tuvi-knowledge.js",
@@ -20,6 +21,8 @@ const CORE_ASSETS = [
   "./knowledge/schools.js",
   "./browser-ai.js",
   "./browser-ai-worker.js",
+  "./browser-cpu-ai.js",
+  "./browser-cpu-ai-worker.js",
   "./engine-worker.js",
   "./engine.zip",
   "./manifest.webmanifest",
@@ -142,7 +145,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const isDocument = event.request.mode === "navigate";
-  const isVersionedCore = /\/(index\.html|app\.js|autonomous\.js|webgpu-failure-guard\.js|offline-summary\.js|hiep-tuvi-ai\.js|hiep-tuvi-knowledge\.js|browser-ai\.js|browser-ai-worker\.js|styles\.css|styles-autonomous\.css|engine-worker\.js|service-worker\.js|engine\.zip)$/.test(url.pathname)
+  const isVersionedCore = /\/(index\.html|app\.js|autonomous\.js|webgpu-failure-guard\.js|cpu-ai-fallback\.js|offline-summary\.js|hiep-tuvi-ai\.js|hiep-tuvi-knowledge\.js|browser-ai\.js|browser-ai-worker\.js|browser-cpu-ai\.js|browser-cpu-ai-worker\.js|styles\.css|styles-autonomous\.css|engine-worker\.js|service-worker\.js|engine\.zip)$/.test(url.pathname)
     || /\/knowledge\/(stars|minor-stars|all-stars|palaces|combinations|structures|bazi|schools)\.js$/.test(url.pathname);
   if (isDocument || isVersionedCore) {
     event.respondWith(fetch(event.request, { cache: "no-store" })
