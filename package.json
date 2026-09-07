@@ -1,9 +1,9 @@
 {
   "name": "tuvi111",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "private": true,
   "scripts": {
     "test": "node --test",
-    "test:syntax": "node --check app.js && node --check autonomous.js && node --check webgpu-failure-guard.js && node --check offline-summary.js && node --check engine-worker.js && node --check service-worker.js && node --check hiep-tuvi-ai.js && node --check hiep-tuvi-knowledge.js && node --check knowledge/stars.js && node --check knowledge/minor-stars.js && node --check knowledge/all-stars.js && node --check knowledge/palaces.js && node --check knowledge/combinations.js && node --check knowledge/structures.js && node --check knowledge/bazi.js && node --check knowledge/schools.js && node --check browser-ai.js && node --check browser-ai-worker.js"
+    "test:syntax": "node --check app.js && node --check autonomous.js && node --check webgpu-failure-guard.js && node --check cpu-ai-fallback.js && node --check browser-cpu-ai.js && node --check browser-cpu-ai-worker.js && node --check offline-summary.js && node --check engine-worker.js && node --check service-worker.js && node --check hiep-tuvi-ai.js && node --check hiep-tuvi-knowledge.js && node --check knowledge/stars.js && node --check knowledge/minor-stars.js && node --check knowledge/all-stars.js && node --check knowledge/palaces.js && node --check knowledge/combinations.js && node --check knowledge/structures.js && node --check knowledge/bazi.js && node --check knowledge/schools.js && node --check browser-ai.js && node --check browser-ai-worker.js"
   }
 }
