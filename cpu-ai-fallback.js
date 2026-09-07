@@ -2,6 +2,7 @@
 
 (function installCpuAiFallback() {
   const gpuPath = window.runGeminiAnalysis;
+  const originalTestPath = window.testGeminiConnection;
   if (typeof gpuPath !== "function") return;
 
   let cpuBusy = false;
@@ -179,7 +180,7 @@
 
         const basePrompt = ai.buildFullReportSectionPrompt(chart, job, { subjectKind, localSummary });
         const prompt = withKnowledge(basePrompt, knowledge, chart, job);
-        const maxTokens = job.kind === "palaces" ? 680 : job.kind === "bazi" ? 650 : 780;
+        const maxTokens = job.kind === "palaces" ? 820 : job.kind === "bazi" ? 720 : 840;
         let data = await cpu.generate(prompt, {
           maxTokens,
           onProgress(report) {
@@ -239,6 +240,65 @@
     try { await window.HiepBrowserAI?.unload?.(); } catch (_) {}
     return runCpuReport(options, fallback);
   };
+
+  window.testGeminiConnection = async function testAllLocalAi(options = {}) {
+    if (options.silent) return originalTestPath?.call(this, options);
+    const button = document.getElementById("testGeminiButton");
+    if (button) button.disabled = true;
+    try {
+      const { cpu } = await loadCpuStack();
+      const browserAi = window.HiepBrowserAI;
+      const gpuInfo = browserAi?.inspectGpu ? await browserAi.inspectGpu().catch(() => ({ ok: false })) : { ok: false };
+      const cpuOk = Boolean(cpu?.available?.()) && cpuSafeEnough();
+      if (gpuInfo?.ok && cpuOk) {
+        setStatus("AI local sẵn sàng · WebGPU chính + CPU/WASM dự phòng", "ready");
+        window.toast?.("WebGPU sẵn sàng; CPU/WASM cũng sẵn sàng làm dự phòng.");
+      } else if (cpuOk) {
+        setStatus("WebGPU không dùng được · AI CPU/WASM sẵn sàng", "ready");
+        window.toast?.("GPU không tương thích nhưng AI CPU/WASM có thể chạy.");
+      } else if (gpuInfo?.ok) {
+        setStatus("WebGPU sẵn sàng · CPU dự phòng không khả dụng", "busy");
+      } else {
+        setStatus("Không có backend AI phù hợp · dùng Local Rules", "error");
+      }
+    } catch (error) {
+      setStatus("Kiểm tra AI local lỗi", "error");
+      alert("Không kiểm tra được AI cục bộ:\n" + String(error?.message || error));
+    } finally {
+      if (button) button.disabled = false;
+    }
+  };
+
+  function applyCpuUi() {
+    const test = document.getElementById("testGeminiButton");
+    if (test) test.textContent = "Kiểm tra AI cục bộ";
+    const resultPanel = document.getElementById("geminiResultPanel");
+    const heading = resultPanel?.querySelector?.("h2");
+    const kicker = resultPanel?.querySelector?.(".section-kicker");
+    const tag = resultPanel?.querySelector?.(".tag");
+    if (heading) heading.textContent = "Hiep TuVi AI — tự luận giải đầy đủ";
+    if (kicker) kicker.textContent = "AI AUTO · WEBGPU + CPU/WASM · LOCAL RULES BACKUP";
+    if (tag) tag.textContent = "AUTO FALLBACK v1.23";
+    const panelKicker = document.querySelector?.(".gemini-panel .section-kicker");
+    if (panelKicker) panelKicker.textContent = "AI LOCAL · WEBGPU ƯU TIÊN · CPU/WASM DỰ PHÒNG";
+    const panelTitle = document.querySelector?.(".gemini-panel h2");
+    if (panelTitle) panelTitle.textContent = "Hiep TuVi AI — AUTO FULL REPORT";
+    const inlineNote = document.querySelector?.(".inline-gemini-actions .muted");
+    if (inlineNote) inlineNote.textContent = "Local Rules hiện ngay; AI tự dùng WebGPU và tự chuyển CPU/WASM nếu GPU không tương thích.";
+    const resultNote = document.querySelector?.(".ai-result-location-note");
+    if (resultNote) resultNote.textContent = "Tuvi111 khóa FACT/CALC. Thứ tự thực thi: WebGPU → CPU/WASM → Local Rules; lỗi một tầng không làm mất báo cáo.";
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    applyCpuUi();
+    const test = document.getElementById("testGeminiButton");
+    if (test && typeof MutationObserver !== "undefined") {
+      new MutationObserver(() => {
+        if (test.textContent !== "Kiểm tra AI cục bộ") test.textContent = "Kiểm tra AI cục bộ";
+      }).observe(test, { childList: true, characterData: true, subtree: true });
+    }
+    setTimeout(applyCpuUi, 500);
+  });
 
   window.HiepCpuFallbackRouter = Object.freeze({
     cpuSafeEnough,
