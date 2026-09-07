@@ -14,6 +14,7 @@ function createHarness(failingAsset = "") {
     URL,
     console,
     Promise,
+    Response,
     self: {
       location: { origin: "https://example.test" },
       skipWaiting() {},
@@ -53,16 +54,17 @@ assert.ok(success.stored.includes("./offline-summary.js"));
 assert.ok(success.stored.includes("./hiep-tuvi-ai.js"));
 assert.ok(success.stored.includes("./hiep-tuvi-knowledge.js"));
 assert.ok(success.stored.includes("./knowledge/stars.js"));
-assert.ok(success.stored.includes("./knowledge/palaces.js"));
-assert.ok(success.stored.includes("./knowledge/combinations.js"));
-assert.ok(success.stored.includes("./knowledge/structures.js"));
-assert.ok(success.stored.includes("./knowledge/bazi.js"));
-assert.ok(success.stored.includes("./knowledge/schools.js"));
+assert.ok(success.stored.includes("./knowledge/minor-stars.js"));
+assert.ok(success.stored.includes("./knowledge/all-stars.js"));
 assert.ok(success.stored.includes("./browser-ai.js"));
 assert.ok(success.stored.includes("./browser-ai-worker.js"));
+assert.ok(success.stored.includes("./webgpu-failure-guard.js"));
+assert.ok(success.stored.includes("./browser-cpu-ai.js"));
+assert.ok(success.stored.includes("./browser-cpu-ai-worker.js"));
+assert.ok(success.stored.includes("./cpu-ai-fallback.js"));
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./knowledge/stars.js");
+const failure = createHarness("./browser-cpu-ai.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires deterministic engine, structured KB V2, and browser AI runtime files");
+console.log("PASS: service worker requires deterministic engine plus WebGPU and CPU/WASM AI fallback assets");
