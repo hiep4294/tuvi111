@@ -63,10 +63,13 @@ assert.ok(success.stored.includes("./browser-native-ai.js"));
 assert.ok(success.stored.includes("./ai-lite-router.js"));
 assert.ok(success.stored.includes("./browser-cpu-ai.js"));
 assert.ok(success.stored.includes("./browser-cpu-ai-worker.js"));
-assert.ok(!success.stored.includes("./cpu-ai-fallback.js"), "v1.24 must not preload the old full CPU report router");
+assert.ok(success.stored.includes("./hiep-tuvi-06b.js"));
+assert.ok(success.stored.includes("./hiep-tuvi-06b-worker.js"));
+assert.ok(success.stored.includes("./hiep-tuvi-06b-domain.js"));
+assert.ok(!success.stored.includes("./cpu-ai-fallback.js"), "v1.25 must not preload the old full CPU report router");
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./ai-lite-router.js");
+const failure = createHarness("./hiep-tuvi-06b-worker.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires deterministic engine plus bounded AI Lite routing assets");
+console.log("PASS: service worker requires deterministic engine plus integrated on-demand Hiep TuVi 0.6B assets");

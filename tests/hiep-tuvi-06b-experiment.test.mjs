@@ -25,6 +25,8 @@ assert.match(domain, /180–320 từ/);
 assert.match(domain, /Không phải vì X đơn thuần\. Quan trọng là/);
 assert.match(domain, /knowledgeForPalaces/);
 assert.match(domain, /tuviAppFrame/);
+
+// Standalone experiment page remains available for isolated diagnostics.
 assert.match(html, /Hiep TuVi 0\.6B — thử nghiệm chuyên ngành/);
 assert.match(html, /id="tuviAppFrame"/);
 assert.match(html, /id="hiep06bRunButton"/);
@@ -33,7 +35,16 @@ assert.match(html, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
 assert.match(html, /connect-src[^;]*https:\/\/huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.xethub\.hf\.co/);
-assert.doesNotMatch(mainHtml, /hiep-tuvi-06b-worker|hiep-tuvi-06b-domain|experiment-06b/);
+
+// v1.25 integrates the same bounded 0.6B controller directly in the main UI.
+assert.match(mainHtml, /id="hiep06bPanel"/);
+assert.match(mainHtml, /id="hiep06bPalaceSelect"/);
+assert.match(mainHtml, /id="hiep06bRunButton"/);
+assert.match(mainHtml, /hiep-tuvi-06b\.js\?v=0\.1\.0/);
+assert.match(mainHtml, /hiep-tuvi-06b-domain\.js\?v=0\.1\.1/);
+assert.doesNotMatch(mainHtml, /<script src="hiep-tuvi-06b-worker\.js/);
+assert.match(mainHtml, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
+assert.match(mainHtml, /connect-src[^;]*https:\/\/huggingface\.co/);
 
 const context = {
   console,
@@ -88,4 +99,4 @@ assert.match(prompt, /Hóa Kỵ/);
 assert.match(prompt, /FACT\/CALC đã khóa bởi tuvi111/);
 assert.match(prompt, /\/no_think/);
 
-console.log("PASS: isolated Hiep TuVi 0.6B experiment is bounded and allows required model download origins");
+console.log("PASS: Hiep TuVi 0.6B remains bounded and is integrated into the main app on-demand");

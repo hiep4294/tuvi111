@@ -1,7 +1,7 @@
 "use strict";
 
 (function installHiepAiLiteRouter(root) {
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const GPU_LITE_MODEL = "Qwen3-1.7B-q4f16_1-MLC";
   let busy = false;
   let nativePreparePromise = null;
@@ -15,12 +15,6 @@
 
   function setStatus(message, mode = "busy") {
     root.setGeminiStatus?.(message, mode);
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    })[char]);
   }
 
   function withTimeout(promise, ms, message) {
@@ -150,7 +144,7 @@
     removeTransient();
     const note = document.createElement("div");
     note.className = "ai-lite-fallback-note";
-    note.textContent = "AI tăng cường chưa khả dụng trên thiết bị này. Báo cáo Hiep TuVi Local Rules đầy đủ bên dưới vẫn là kết quả chính; không tải thêm model nặng để tránh tràn RAM.";
+    note.textContent = "AI tăng cường chưa khả dụng trên thiết bị này. Báo cáo Hiep TuVi Local Rules đầy đủ bên dưới vẫn là kết quả chính; Hiep TuVi 0.6B có thể thử riêng từng cung nếu WebGPU phù hợp.";
     output.prepend(note);
     latestDiagnostics = diagnostics;
   }
@@ -177,7 +171,7 @@
             throw error;
           });
         translatorPreparePromise.catch(() => {});
-      } catch (error) {
+      } catch (_) {
         translatorState = "failed";
       }
     }
@@ -190,7 +184,7 @@
             nativeState = "ready";
             if (retryWhenNativeReady && root.__HIEP_TUVI_CHART__ && !busy) {
               retryWhenNativeReady = false;
-              setTimeout(() => root.runGeminiAnalysis?.({ automatic: true, preferNative: true }), 50);
+              setTimeout(() => root.runGeminiAnalysis?.({ automatic: false, preferNative: true }), 50);
             }
             return value;
           })
@@ -206,17 +200,14 @@
     }
   }
 
-  async function tryNative(chart, prompt, automatic) {
+  async function tryNative(chart, prompt) {
     const native = root.HiepNativeAI;
     if (!native?.modelSupported?.()) throw new Error("Chrome LanguageModel không có trên trình duyệt.");
     if (native.prepared?.()) nativeState = "ready";
 
     if (nativeState === "pending") {
-      if (automatic) {
-        retryWhenNativeReady = true;
-        throw Object.assign(new Error("NATIVE_DOWNLOADING"), { code: "NATIVE_DOWNLOADING" });
-      }
-      await withTimeout(nativePreparePromise, 120000, "Chrome Built-in AI đang tải quá lâu.");
+      retryWhenNativeReady = true;
+      throw Object.assign(new Error("NATIVE_DOWNLOADING"), { code: "NATIVE_DOWNLOADING" });
     }
     if (nativeState !== "ready" && !native.prepared?.()) throw new Error("Chrome Built-in AI chưa sẵn sàng.");
 
@@ -285,25 +276,29 @@
       return { skipped: true, reason: "no-chart" };
     }
 
-    // A manual click is a fresh user activation: start browser-native downloads immediately.
-    if (!automatic) prewarmFromGesture();
+    // v1.25: không tự tải bất kỳ model AI nào sau khi lập lá số.
+    // Local Rules hiển thị ngay; Hiep TuVi 0.6B và AI Lite chỉ chạy khi người dùng chủ động bấm.
+    if (automatic) {
+      setStatus("Local Rules đã sẵn sàng · AI 0.6B chạy theo yêu cầu", "ready");
+      return { skipped: true, reason: "manual-ai-only" };
+    }
+
+    prewarmFromGesture();
 
     const chartId = String(chart.chart_id || "chart");
-    if (automatic && enhancedChartId === chartId) return { skipped: true, reason: "already-enhanced" };
-
     setBusy(true);
     latestDiagnostics = [];
     try {
       const [ai, knowledge] = await Promise.all([
         loadScript("HiepTuViAI", "hiep-tuvi-ai.js?v=2.0.0"),
-        loadScript("HiepTuViKnowledge", "hiep-tuvi-knowledge.js?v=1.0.0"),
+        loadScript("HiepTuViKnowledge", "hiep-tuvi-knowledge.js?v=2.0.1"),
       ]);
       if (!ai?.buildBrowserSummaryPrompt || !ai?.buildCompactEvidenceText) throw new Error("Hiep TuVi synthesis layer chưa sẵn sàng.");
       const prompt = buildSynthesisPrompt(chart, ai, knowledge, false);
       const cpuPrompt = buildSynthesisPrompt(chart, ai, knowledge, true);
 
       const backends = [
-        ["chrome-built-in", () => tryNative(chart, prompt, automatic)],
+        ["chrome-built-in", () => tryNative(chart, prompt)],
         ["webgpu-lite", () => tryWebGpu(prompt)],
         ["cpu-wasm-lite", () => tryCpu(chart, cpuPrompt)],
       ];
@@ -319,8 +314,8 @@
           return { ok: true, backend: result.backend || name, model: result.model || "" };
         } catch (error) {
           if (error?.code === "NATIVE_DOWNLOADING") {
-            renderLoading("Chrome Built-in AI đang tải trong nền; báo cáo 12 cung đã sẵn sàng. AI sẽ tự bổ sung khi tải xong.");
-            setStatus("Chrome Built-in AI đang tải · Local Rules đã sẵn sàng", "busy");
+            renderLoading("Chrome Built-in AI đang tải; Local Rules vẫn sẵn sàng. Khi tải xong hãy bấm AI tổng hợp lại.");
+            setStatus("Chrome Built-in AI đang tải · chưa chạy model khác", "busy");
             return { skipped: true, reason: "native-downloading" };
           }
           latestDiagnostics.push({ backend: name, error: String(error?.message || error) });
@@ -343,31 +338,23 @@
   root.runGeminiAnalysis = runLite;
 
   root.testGeminiConnection = async function testAiLite() {
-    prewarmFromGesture();
-    setStatus("Đang kiểm tra AI cục bộ theo chế độ Lite...", "busy");
+    setStatus("Đang kiểm tra AI cục bộ theo yêu cầu...", "busy");
     const diagnostics = [];
     try {
-      if (nativePreparePromise) {
-        try {
-          await withTimeout(nativePreparePromise, 15000, "Chrome Built-in AI cần thêm thời gian tải.");
-          setStatus("Chrome Built-in AI sẵn sàng", "ready");
-          root.toast?.("Chrome Built-in AI sẵn sàng.");
-          return;
-        } catch (error) { diagnostics.push(String(error?.message || error)); }
+      const browserAi = await loadScript("HiepBrowserAI", "browser-ai.js?v=1.1.1");
+      const info = await browserAi.inspectGpu?.();
+      if (info?.ok && !root.HiepWebGpuFailureGuard?.webGpuBlocked?.()) {
+        setStatus("WebGPU có thể thử · ưu tiên Hiep TuVi 0.6B theo từng cung", "ready");
+        return;
       }
-      try {
-        const browserAi = await loadScript("HiepBrowserAI", "browser-ai.js?v=1.1.1");
-        const info = await browserAi.inspectGpu?.();
-        if (info?.ok && !root.HiepWebGpuFailureGuard?.webGpuBlocked?.()) {
-          setStatus("WebGPU Lite có thể thử khi tổng hợp", "ready");
-          return;
-        }
-      } catch (error) { diagnostics.push(String(error?.message || error)); }
-      if (translatorState === "ready" && cpuSafe()) {
-        setStatus("CPU Lite/WASM sẵn đường dự phòng (~135M)", "ready");
+      if (cpuSafe()) {
+        setStatus("WebGPU không sẵn sàng · Local Rules vẫn hoạt động", "ready");
         return;
       }
       setStatus("Không có backend AI phù hợp · dùng Local Rules", "ready");
+    } catch (error) {
+      diagnostics.push(String(error?.message || error));
+      setStatus("AI model chưa sẵn sàng · dùng Local Rules", "ready");
       alert("AI model chưa sẵn sàng. Báo cáo Local Rules vẫn hoạt động đầy đủ.\n\n" + diagnostics.slice(0, 3).join("\n"));
     } finally {
       latestDiagnostics = diagnostics.map((error) => ({ backend: "test", error }));
@@ -375,7 +362,7 @@
   };
 
   root.restoreGeminiSettings = function restoreAiLiteSettings() {
-    setStatus("AI Lite · ưu tiên Chrome Built-in → WebGPU 1.7B → CPU 135M", "");
+    setStatus("Local Rules sẵn sàng · AI chỉ chạy khi bấm", "ready");
   };
 
   root.HiepAiLiteRouter = Object.freeze({
@@ -390,24 +377,19 @@
   });
 
   root.addEventListener("DOMContentLoaded", () => {
-    const generateButton = document.getElementById("generateButton");
-    const prewarm = () => prewarmFromGesture();
-    generateButton?.addEventListener("pointerdown", prewarm, { passive: true });
-    generateButton?.addEventListener("click", prewarm, { passive: true });
-
     const resultPanel = document.getElementById("geminiResultPanel");
     const heading = resultPanel?.querySelector?.("h2");
     const kicker = resultPanel?.querySelector?.(".section-kicker");
     const tag = resultPanel?.querySelector?.(".tag");
     if (heading) heading.textContent = "Hiep TuVi — 12 cung đầy đủ + AI tổng hợp Lite";
-    if (kicker) kicker.textContent = "LOCAL RULES FULL · AI CHỈ TỔNG HỢP · KHÔNG TRÀN RAM";
-    if (tag) tag.textContent = "v1.24 · STABILITY FIRST";
+    if (kicker) kicker.textContent = "LOCAL RULES FULL · AI CHỈ CHẠY KHI BẤM";
+    if (tag) tag.textContent = "v1.25 · MANUAL AI";
     document.querySelectorAll?.("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "AI tổng hợp lại"; });
     const note = document.querySelector?.(".inline-gemini-actions .muted");
-    if (note) note.textContent = "12 cung được tạo bằng Local Rules. AI chỉ tổng hợp bổ sung một lượt để tránh lỗi shader, tràn RAM và timeout.";
+    if (note) note.textContent = "Local Rules tạo đủ 12 cung trước. Không model AI nào tự tải sau khi lập lá số.";
     const panelTitle = document.querySelector?.(".gemini-panel h2");
-    if (panelTitle) panelTitle.textContent = "Hiep TuVi AI Lite — tổng hợp bổ sung";
+    if (panelTitle) panelTitle.textContent = "Hiep TuVi AI Lite — tổng hợp bổ sung theo yêu cầu";
     const resultNote = document.querySelector?.(".ai-result-location-note");
-    if (resultNote) resultNote.textContent = "Thứ tự: Chrome Built-in AI → WebGPU Qwen3 1.7B một lượt → CPU Lite 135M một lượt → Local Rules. Không backend nào được phép viết lại toàn bộ 12 cung.";
+    if (resultNote) resultNote.textContent = "Hiep TuVi 0.6B chuyên ngành nằm ngay dưới báo cáo. AI Lite tổng hợp cũ vẫn giữ để thử thủ công, không chạy tự động.";
   });
 })(window);
