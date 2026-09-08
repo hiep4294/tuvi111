@@ -59,12 +59,14 @@ assert.ok(success.stored.includes("./knowledge/all-stars.js"));
 assert.ok(success.stored.includes("./browser-ai.js"));
 assert.ok(success.stored.includes("./browser-ai-worker.js"));
 assert.ok(success.stored.includes("./webgpu-failure-guard.js"));
+assert.ok(success.stored.includes("./browser-native-ai.js"));
+assert.ok(success.stored.includes("./ai-lite-router.js"));
 assert.ok(success.stored.includes("./browser-cpu-ai.js"));
 assert.ok(success.stored.includes("./browser-cpu-ai-worker.js"));
-assert.ok(success.stored.includes("./cpu-ai-fallback.js"));
+assert.ok(!success.stored.includes("./cpu-ai-fallback.js"), "v1.24 must not preload the old full CPU report router");
 assert.ok(success.stored.includes("./vendor/pyodide/pyodide.asm.wasm"));
 
-const failure = createHarness("./browser-cpu-ai.js");
+const failure = createHarness("./ai-lite-router.js");
 await assert.rejects(runInstall(failure), /Cannot cache/);
 
-console.log("PASS: service worker requires deterministic engine plus WebGPU and CPU/WASM AI fallback assets");
+console.log("PASS: service worker requires deterministic engine plus bounded AI Lite routing assets");
