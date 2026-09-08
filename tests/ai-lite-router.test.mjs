@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "ai-lite-router.js"), "utf8");
 
-assert.match(source, /VERSION = "1\.0\.0"/);
+assert.match(source, /VERSION = "1\.1\.0"/);
 assert.match(source, /GPU_LITE_MODEL = "Qwen3-1\.7B-q4f16_1-MLC"/);
 assert.match(source, /buildBrowserSummaryPrompt/);
 assert.match(source, /buildCompactEvidenceText/);
@@ -24,10 +24,13 @@ assert.match(source, /isLowMemoryDevice/);
 assert.match(source, /webGpuBlocked/);
 assert.match(source, /AI tăng cường chưa khả dụng/);
 assert.match(source, /root\.runGeminiAnalysis = runLite/);
+assert.match(source, /if \(automatic\)/);
+assert.match(source, /manual-ai-only/);
+assert.match(source, /không tự tải bất kỳ model AI nào sau khi lập lá số/i);
 assert.doesNotMatch(source, /fullReportPlan/);
 assert.doesNotMatch(source, /buildFullReportSectionPrompt/);
 assert.doesNotMatch(source, /Qwen3-4B-q4f16_1-MLC/);
 assert.doesNotMatch(source, /Qwen3-8B-q4f16_1-MLC/);
 assert.doesNotMatch(source, /runCpuReport/);
 
-console.log("PASS: AI Lite router bounds each model to one compact synthesis and preserves Local Rules");
+console.log("PASS: AI Lite is manual-only in v1.25 while preserving bounded fallback paths");
