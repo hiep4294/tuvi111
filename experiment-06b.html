@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6b2f24">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Hiep TuVi 0.6B — thử nghiệm</title>
+  <style>
+    :root { color-scheme: light; --bg:#f5efe6; --card:#fffdf8; --ink:#2d2926; --muted:#756b63; --line:#ded2c2; --brand:#6b2f24; --ok:#0f766e; --err:#b42318; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--ink); }
+    header { padding:14px 18px; background:#fff9f0; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-size:20px; }
+    header p { margin:4px 0 0; font-size:13px; color:var(--muted); }
+    .badge { padding:7px 10px; border:1px solid var(--line); border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
+    main { display:grid; grid-template-columns:minmax(340px,420px) 1fr; height:calc(100vh - 77px); }
+    aside { overflow:auto; padding:14px; border-right:1px solid var(--line); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
+    .card h2,.card h3 { margin:0 0 9px; color:var(--brand); }
+    .muted { color:var(--muted); font-size:12px; line-height:1.45; }
+    label { display:grid; gap:5px; font-size:13px; font-weight:700; margin:10px 0; }
+    select,button { min-height:42px; border-radius:7px; border:1px solid #cdbfad; padding:8px 10px; font:inherit; }
+    button { cursor:pointer; background:#fff; font-weight:700; }
+    button.primary { background:var(--brand); color:white; border-color:var(--brand); width:100%; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+    .tag { display:inline-block; margin-top:8px; padding:6px 8px; border-radius:6px; background:#efe6da; font-size:12px; font-weight:700; }
+    .tag.ready { background:#dff3ee; color:#115e59; }
+    .tag.error { background:#fee4e2; color:var(--err); }
+    .tag.busy { background:#fff0c7; color:#7a4d00; }
+    #hiep06bOutput { margin-top:10px; max-height:50vh; overflow:auto; padding-right:4px; }
+    #hiep06bOutput h3,#hiep06bOutput h4 { margin:10px 0 6px; }
+    #hiep06bOutput p { margin:7px 0; line-height:1.5; }
+    #hiep06bOutput blockquote { margin:10px 0; padding:10px 12px; border-left:4px solid var(--brand); background:#f7f0e8; }
+    .ai-meta { font-size:11px; font-weight:800; color:var(--ok); margin-bottom:8px; }
+    .ai-error { color:var(--err); line-height:1.5; }
+    .frame-wrap { min-width:0; background:white; }
+    iframe { width:100%; height:100%; border:0; display:block; }
+    code { font-size:12px; }
+    @media (max-width:900px) {
+      main { display:block; height:auto; }
+      aside { border-right:0; border-bottom:1px solid var(--line); }
+      .frame-wrap { height:78vh; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Hiep TuVi 0.6B — thử nghiệm chuyên ngành</h1>
+      <p>Qwen3-0.6B ONNX · WebGPU q4f16 · chỉ luận một cung/lần · Knowledge Base V2.</p>
+    </div>
+    <span class="badge">EXPERIMENT v0.1 · KHÔNG THAY APP GỐC</span>
+  </header>
+
+  <main>
+    <aside>
+      <section class="card">
+        <h2>Cách thử</h2>
+        <p class="muted">1) Lập lá số trong khung tuvi111 bên phải. 2) Chọn một cung bên dưới. 3) Bấm thử 0.6B. Lần đầu model có thể tải khoảng 0,5–0,6 GB rồi được cache trên trình duyệt.</p>
+        <p class="muted">Mục tiêu là kiểm tra chất lượng và độ ổn định trước. Model không được phép an lại sao hoặc thay FACT/CALC.</p>
+      </section>
+
+      <section class="card">
+        <h3>Thử luận một cung</h3>
+        <label>Cung
+          <select id="hiep06bPalaceSelect">
+            <option>Mệnh</option>
+            <option>Phụ Mẫu</option>
+            <option>Phúc Đức</option>
+            <option>Điền Trạch</option>
+            <option>Quan Lộc</option>
+            <option>Nô Bộc</option>
+            <option>Thiên Di</option>
+            <option>Tật Ách</option>
+            <option>Tài Bạch</option>
+            <option>Tử Tức</option>
+            <option>Phu Thê</option>
+            <option>Huynh Đệ</option>
+          </select>
+        </label>
+        <button id="hiep06bRunButton" class="primary" type="button">Thử luận 1 cung bằng 0.6B</button>
+        <div class="actions">
+          <button id="hiep06bUnloadButton" type="button">Giải phóng model</button>
+          <button type="button" onclick="document.getElementById('tuviAppFrame').contentWindow.location.reload()">Tải lại app gốc</button>
+        </div>
+        <div id="hiep06bStatus" class="tag">Chưa chạy thử</div>
+        <div id="hiep06bOutput"><p class="muted">Kết quả thử nghiệm sẽ xuất hiện tại đây. Báo cáo Local Rules trong app bên phải vẫn giữ nguyên.</p></div>
+      </section>
+
+      <section class="card">
+        <h3>Gate đánh giá</h3>
+        <p class="muted">PASS sơ bộ khi: không crash; đúng cung/sao; không bịa FACT; có chuỗi cơ chế A → modifier → quan hệ cung → kết luận; văn phong không chỉ liệt kê từ khóa.</p>
+        <p class="muted">Nếu model vẫn lỗi WebGPU, đó là dữ liệu quan trọng: ORT WebGPU cũng không tương thích với GPU/driver của máy và ta không nên tiếp tục ép browser-local model.</p>
+      </section>
+    </aside>
+
+    <section class="frame-wrap">
+      <iframe id="tuviAppFrame" src="./index.html?experiment06b=1" title="Tuvi111 app"></iframe>
+    </section>
+  </main>
+
+  <script src="knowledge/stars.js?v=2.0.0"></script>
+  <script src="knowledge/minor-stars.js?v=2.2.0"></script>
+  <script src="knowledge/all-stars.js?v=2.2.0"></script>
+  <script src="knowledge/palaces.js?v=2.0.0"></script>
+  <script src="knowledge/combinations.js?v=2.0.0"></script>
+  <script src="knowledge/structures.js?v=2.0.0"></script>
+  <script src="knowledge/bazi.js?v=2.0.0"></script>
+  <script src="knowledge/schools.js?v=2.0.0"></script>
+  <script src="hiep-tuvi-knowledge.js?v=2.0.1"></script>
+  <script src="hiep-tuvi-06b.js?v=0.1.0"></script>
+  <script src="hiep-tuvi-06b-domain.js?v=0.1.1"></script>
+</body>
+</html>
