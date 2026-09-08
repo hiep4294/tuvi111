@@ -29,6 +29,10 @@ assert.match(html, /Hiep TuVi 0\.6B — thử nghiệm chuyên ngành/);
 assert.match(html, /id="tuviAppFrame"/);
 assert.match(html, /id="hiep06bRunButton"/);
 assert.match(html, /hiep-tuvi-06b-domain\.js\?v=0\.1\.1/);
+assert.match(html, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
+assert.match(html, /connect-src[^;]*https:\/\/huggingface\.co/);
+assert.match(html, /connect-src[^;]*https:\/\/\*\.huggingface\.co/);
+assert.match(html, /connect-src[^;]*https:\/\/\*\.xethub\.hf\.co/);
 assert.doesNotMatch(mainHtml, /hiep-tuvi-06b-worker|hiep-tuvi-06b-domain|experiment-06b/);
 
 const context = {
@@ -84,4 +88,4 @@ assert.match(prompt, /Hóa Kỵ/);
 assert.match(prompt, /FACT\/CALC đã khóa bởi tuvi111/);
 assert.match(prompt, /\/no_think/);
 
-console.log("PASS: isolated Hiep TuVi 0.6B experiment is bounded and does not alter the main app path");
+console.log("PASS: isolated Hiep TuVi 0.6B experiment is bounded and allows required model download origins");
