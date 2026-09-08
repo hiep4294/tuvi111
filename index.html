@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
-  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và tạo báo cáo Hiep TuVi đầy đủ cục bộ; AI ưu tiên WebGPU và tự chuyển CPU/WASM khi GPU không tương thích.">
+  <meta name="description" content="Lập lá số Tử Vi, Bát Tự và báo cáo Hiep TuVi đầy đủ cục bộ; AI Lite chỉ tổng hợp bổ sung để tránh tràn RAM và lỗi WebGPU.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <title>Tử Vi + Bát Tự — Web v1.23 Hiep TuVi AI WebGPU + CPU</title>
+  <title>Tử Vi + Bát Tự — Web v1.24 Hiep TuVi AI Lite</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=1.23">
-  <link rel="stylesheet" href="styles-autonomous.css?v=1.23">
+  <link rel="stylesheet" href="styles.css?v=1.24">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.24">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">WEB v1.23 · TUVI111 FACT/CALC · WEBGPU → CPU/WASM → LOCAL RULES</div>
+      <div class="eyebrow">WEB v1.24 · TUVI111 FACT/CALC · LOCAL RULES FULL · AI LITE</div>
       <h1>Tử Vi + Bát Tự</h1>
-      <p>Tuvi111 tự tính lá số/Bát Tự · AI ưu tiên Qwen WebGPU; nếu GPU/driver lỗi sẽ tự chuyển Qwen2.5 0.5B chạy CPU/WASM · Local Rules đầy đủ luôn là lớp dự phòng cuối.</p>
+      <p>Tuvi111 tự tính lá số/Bát Tự và tạo đủ 12 cung bằng Local Rules. AI không còn viết lại toàn bộ báo cáo: chỉ tổng hợp bổ sung một lượt theo thứ tự Chrome Built-in AI → WebGPU 1.7B → CPU Lite 135M.</p>
     </div>
     <div class="engine-state" id="engineState" aria-live="polite">
       <span class="state-dot"></span>
@@ -82,7 +82,7 @@
         <div class="progress-track"><div id="progressBar"></div></div>
         <small id="progressText">Đang tải bộ máy lần đầu...</small>
       </div>
-      <p class="privacy-note">Luôn có ngay báo cáo Local Rules đủ 12 cung + Bát Tự + phản biện. AI tự chạy theo thứ tự: WebGPU trước → nếu lỗi chuyển CPU/WASM. Lần đầu dùng CPU cần tải model khoảng 0,5 GB; sau đó trình duyệt dùng cache.</p>
+      <p class="privacy-note">Báo cáo 12 cung + Bát Tự + phản biện luôn có ngay bằng Local Rules. AI chỉ tổng hợp thêm một phần ngắn; không còn tải Qwen 4B/8B hoặc bắt CPU viết hàng nghìn token.</p>
     </aside>
 
     <section class="workspace">
@@ -121,17 +121,17 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">AI AUTO · WEBGPU + CPU/WASM · LOCAL RULES BACKUP</span>
-                  <h2>Hiep TuVi AI — tự luận giải đầy đủ</h2>
+                  <span class="section-kicker">LOCAL RULES FULL · AI LITE TỔNG HỢP</span>
+                  <h2>Hiep TuVi — 12 cung đầy đủ + AI tổng hợp Lite</h2>
                 </div>
-                <span class="tag">AUTO FALLBACK v1.23</span>
+                <span class="tag">v1.24 · STABILITY FIRST</span>
               </div>
               <div class="inline-gemini-actions">
-                <button id="runGeminiInlineButton" class="primary-button" type="button">AI luận giải lại</button>
-                <span class="muted">Báo cáo Local Rules xuất hiện ngay. AI sẽ tự dùng WebGPU; nếu GPU/driver không chạy được thì tự chuyển CPU/WASM, không cần bấm thêm.</span>
+                <button id="runGeminiInlineButton" class="primary-button" type="button">AI tổng hợp lại</button>
+                <span class="muted">12 cung được tạo trước bằng Local Rules. AI chỉ thêm một phần tổng hợp ngắn, không viết lại toàn bộ báo cáo.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Lập lá số xong sẽ có ngay đủ 12 cung. Sau đó AI tự viết lại sâu hơn bằng WebGPU hoặc CPU/WASM.</p>
+                <p class="muted">Lập lá số xong sẽ có ngay đủ 12 cung; AI Lite chỉ bổ sung tổng hợp khi thiết bị có backend phù hợp.</p>
               </div>
             </section>
 
@@ -188,37 +188,35 @@
         <section class="card gemini-panel">
           <div class="gemini-heading">
             <div>
-              <span class="section-kicker">AI LOCAL · WEBGPU ƯU TIÊN · CPU/WASM DỰ PHÒNG</span>
-              <h2>Hiep TuVi AI — AUTO FULL REPORT</h2>
+              <span class="section-kicker">AI LITE · KHÔNG FULL-REPORT GENERATION</span>
+              <h2>Hiep TuVi AI Lite — tổng hợp bổ sung</h2>
             </div>
-            <span id="geminiStatus" class="tag">AI chưa kiểm tra</span>
+            <span id="geminiStatus" class="tag">AI Lite chưa kiểm tra</span>
           </div>
 
           <div class="gemini-settings">
             <label hidden>Địa chỉ fallback cloud
               <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://worker.example">
             </label>
-            <label>Model WebGPU ưu tiên
-              <select id="geminiModel" aria-label="Mô hình AI WebGPU ưu tiên">
-                <option value="Qwen3-4B-q4f16_1-MLC" selected>Qwen3 4B — mặc định</option>
-                <option value="Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B — máy yếu</option>
-                <option value="Qwen3-8B-q4f16_1-MLC">Qwen3 8B — máy mạnh</option>
+            <label hidden>Model WebGPU Lite
+              <select id="geminiModel" aria-label="Mô hình AI WebGPU Lite">
+                <option value="Qwen3-1.7B-q4f16_1-MLC" selected>Qwen3 1.7B — chỉ tổng hợp một lượt</option>
               </select>
             </label>
-            <span class="muted">CPU dự phòng cố định: Qwen2.5 0.5B q8 chạy WASM.</span>
+            <span class="muted">Thứ tự: Chrome Built-in AI → WebGPU Qwen3 1.7B one-shot → CPU Lite SmolLM2 135M one-shot → Local Rules.</span>
             <button id="saveGeminiSettingsButton" type="button" hidden>Lưu fallback</button>
             <button id="testGeminiButton" type="button">Kiểm tra AI cục bộ</button>
           </div>
 
           <div class="gemini-actions">
-            <button id="runGeminiButton" class="primary-button" type="button">AI luận giải lại</button>
+            <button id="runGeminiButton" class="primary-button" type="button">AI tổng hợp lại</button>
             <button id="copyGeminiButton" type="button">Sao chép kết quả</button>
             <button id="downloadGeminiButton" type="button">Tải kết quả</button>
             <button id="clearGeminiButton" type="button">Xóa kết quả</button>
           </div>
 
           <div class="ai-result-location-note">
-            Tuvi111 khóa FACT/CALC. AI dùng Knowledge Base Hiep TuVi để diễn giải. Thứ tự thực thi: WebGPU → CPU/WASM → Local Rules; lỗi một tầng không làm mất báo cáo.
+            AI không được phép thay thế 12 cung Local Rules. Nếu backend AI không chạy, phần mềm giữ nguyên báo cáo đầy đủ và không tiếp tục tải model nặng.
           </div>
         </section>
       </section>
@@ -235,7 +233,7 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.23 · Tuvi111 deterministic · Hiep TuVi AI WebGPU → CPU/WASM → Local Rules.</p>
+    <p>Web v1.24 · Tuvi111 deterministic · Local Rules Full · Hiep TuVi AI Lite.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -247,11 +245,12 @@
   <script src="knowledge/structures.js?v=2.0.0" defer></script>
   <script src="knowledge/bazi.js?v=2.0.0" defer></script>
   <script src="knowledge/schools.js?v=2.0.0" defer></script>
-  <script src="app.js?v=1.23" defer></script>
-  <script src="autonomous.js?v=1.23" defer></script>
-  <script src="webgpu-failure-guard.js?v=1.23" defer></script>
+  <script src="app.js?v=1.24" defer></script>
+  <script src="autonomous.js?v=1.24" defer></script>
+  <script src="webgpu-failure-guard.js?v=1.24" defer></script>
   <script src="offline-summary.js?v=2.2.0" defer></script>
-  <script src="browser-cpu-ai.js?v=1.0.0" defer></script>
-  <script src="cpu-ai-fallback.js?v=1.0.0" defer></script>
+  <script src="browser-native-ai.js?v=1.0.1" defer></script>
+  <script src="browser-cpu-ai.js?v=1.1.0" defer></script>
+  <script src="ai-lite-router.js?v=1.0.0" defer></script>
 </body>
 </html>
