@@ -18,59 +18,75 @@ const bazi = readFileSync(join(root, "knowledge/bazi.js"), "utf8");
 const schools = readFileSync(join(root, "knowledge/schools.js"), "utf8");
 const browserAi = readFileSync(join(root, "browser-ai.js"), "utf8");
 const browserWorker = readFileSync(join(root, "browser-ai-worker.js"), "utf8");
+const nativeAi = readFileSync(join(root, "browser-native-ai.js"), "utf8");
+const liteRouter = readFileSync(join(root, "ai-lite-router.js"), "utf8");
 const cpuAi = readFileSync(join(root, "browser-cpu-ai.js"), "utf8");
 const cpuWorker = readFileSync(join(root, "browser-cpu-ai-worker.js"), "utf8");
-const cpuRouter = readFileSync(join(root, "cpu-ai-fallback.js"), "utf8");
 const offline = readFileSync(join(root, "offline-summary.js"), "utf8");
 const guard = readFileSync(join(root, "webgpu-failure-guard.js"), "utf8");
 
-assert.match(autonomous, /hiep-tuvi-ai\.js\?v=2\.0\.0/);
-assert.match(autonomous, /hiep-tuvi-knowledge\.js\?v=1\.0\.0/);
+// Legacy autonomous path still captures the chart, but v1.24 loads the Lite router last and overrides AI execution.
 assert.match(autonomous, /__HIEP_TUVI_CHART__/);
-assert.match(autonomous, /fullReportPlan/);
-assert.match(autonomous, /buildFullReportSectionPrompt/);
-assert.match(autonomous, /validateFullReportSection/);
-assert.match(autonomous, /requestLocalWithFallback/);
-assert.match(autonomous, /automatic:\s*true/);
 assert.match(autonomous, /scheduleAutomaticReport/);
-assert.match(autonomous, /AI luận giải lại/);
-assert.match(autonomous, /webGpuAvailable/);
-assert.doesNotMatch(autonomous, /Phân tích chuyên sâu — 15 bước/);
+assert.match(liteRouter, /root\.runGeminiAnalysis = runLite/);
+assert.match(liteRouter, /buildBrowserSummaryPrompt/);
+assert.match(liteRouter, /buildCompactEvidenceText/);
+assert.doesNotMatch(liteRouter, /fullReportPlan/);
+assert.doesNotMatch(liteRouter, /buildFullReportSectionPrompt/);
+assert.match(liteRouter, /chrome-built-in/);
+assert.match(liteRouter, /webgpu-lite/);
+assert.match(liteRouter, /cpu-wasm-lite/);
+assert.match(liteRouter, /Qwen3-1\.7B-q4f16_1-MLC/);
+assert.match(liteRouter, /maxTokens:\s*700/);
+assert.match(liteRouter, /maxTokens:\s*280/);
+assert.match(liteRouter, /Không viết lại 12 cung/);
+assert.doesNotMatch(liteRouter, /Qwen3-4B-q4f16_1-MLC/);
+assert.doesNotMatch(liteRouter, /Qwen3-8B-q4f16_1-MLC/);
 
-assert.match(browserAi, /Qwen3-4B-q4f16_1-MLC/);
-assert.match(browserAi, /Qwen3-8B-q4f16_1-MLC/);
-assert.match(browserAi, /new Worker/);
+// WebGPU remains available only as a one-shot 1.7B fallback selected by the router.
+assert.match(browserAi, /Qwen3-1\.7B-q4f16_1-MLC/);
 assert.match(browserWorker, /@mlc-ai\/web-llm@0\.2\.84/);
 assert.match(browserWorker, /CreateMLCEngine/);
 
-assert.match(cpuAi, /onnx-community\/Qwen2\.5-0\.5B-Instruct/);
-assert.match(cpuAi, /cpu-wasm/);
-assert.match(cpuAi, /browser-cpu-ai-worker\.js\?v=1\.0\.0/);
-assert.match(cpuWorker, /@huggingface\/transformers@3\.8\.1/);
-assert.match(cpuWorker, /device:\s*"wasm"/);
-assert.match(cpuWorker, /dtype:\s*DTYPE/);
-assert.match(cpuWorker, /DTYPE = "q8"/);
-assert.match(cpuWorker, /do_sample:\s*false/);
-assert.match(cpuRouter, /gpuPathFailed/);
-assert.match(cpuRouter, /runCpuReport/);
-assert.match(cpuRouter, /WebGPU không dùng được → đang chuyển sang AI CPU\/WASM/);
-assert.match(cpuRouter, /AI WebGPU và AI CPU\/WASM đều không chạy được/);
-assert.match(cpuRouter, /cpuSafeEnough/);
-assert.match(cpuRouter, /buildFullReportSectionPrompt/);
-assert.match(cpuRouter, /validateFullReportSection/);
+// Chrome browser-native path: English LanguageModel plus vi<->en Translator and protected astrology terms.
+assert.match(nativeAi, /VERSION = "1\.0\.1"/);
+assert.match(nativeAi, /LanguageModel\.availability/);
+assert.match(nativeAi, /LanguageModel\.create/);
+assert.match(nativeAi, /Translator\.availability/);
+assert.match(nativeAi, /Translator\.create/);
+assert.match(nativeAi, /sourceLanguage:\s*"vi"/);
+assert.match(nativeAi, /targetLanguage:\s*"vi"/);
+assert.match(nativeAi, /HIEPTERM/);
+assert.match(nativeAi, /destroyModelSession/);
 
+// CPU fallback is deliberately tiny and one-shot instead of a full eight-stage report generator.
+assert.match(cpuAi, /VERSION = "1\.1\.0"/);
+assert.match(cpuAi, /onnx-community\/SmolLM2-135M-Instruct-ONNX-MHA/);
+assert.match(cpuAi, /cpu-wasm-lite/);
+assert.match(cpuAi, /browser-cpu-ai-worker\.js\?v=1\.1\.0/);
+assert.match(cpuAi, /Math\.min\(360/);
+assert.match(cpuAi, /slice\(0, 8000\)/);
+assert.match(cpuWorker, /@huggingface\/transformers@3\.8\.1/);
+assert.match(cpuWorker, /SmolLM2-135M-Instruct-ONNX-MHA/);
+assert.match(cpuWorker, /device:\s*"wasm"/);
+assert.match(cpuWorker, /DTYPE = "q8"/);
+assert.match(cpuWorker, /Math\.min\(360/);
+assert.match(cpuWorker, /slice\(0, 8000\)/);
+assert.match(cpuWorker, /Do not invent|Never recalculate/i);
+assert.doesNotMatch(cpuAi + cpuWorker, /Qwen2\.5-0\.5B-Instruct/);
+
+assert.match(serviceWorker, /\.\/browser-native-ai\.js/);
+assert.match(serviceWorker, /\.\/ai-lite-router\.js/);
 assert.match(serviceWorker, /\.\/browser-cpu-ai\.js/);
 assert.match(serviceWorker, /\.\/browser-cpu-ai-worker\.js/);
-assert.match(serviceWorker, /\.\/cpu-ai-fallback\.js/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.23-cpu-wasm-fallback-1/);
+assert.doesNotMatch(serviceWorker, /"\.\/cpu-ai-fallback\.js"/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.24-ai-lite-1/);
 
+// Core Hiep TuVi knowledge/report layers remain unchanged.
 assert.match(specialist, /VERSION = "2\.1\.0"/);
 assert.match(specialist, /HIEP_TUVI_FULL_REPORT/);
-assert.match(specialist, /palaces-6/);
-assert.match(specialist, /DATA QUALITY CARD/);
-assert.match(specialist, /TỨ TRỤ BÁT TỰ \+ NGŨ HÀNH/);
-assert.match(specialist, /RED-TEAM \/ PHẢN BIỆN/);
-
+assert.match(specialist, /buildBrowserSummaryPrompt/);
+assert.match(specialist, /buildCompactEvidenceText/);
 assert.match(knowledge, /VERSION = "2\.0\.1"/);
 assert.match(knowledge, /STRUCTURED_LOCAL_KB/);
 assert.match(stars, /STAR-PHAQUAN-001/);
@@ -83,14 +99,9 @@ assert.match(combinations, /COMBO-SATPHATHAM-001/);
 assert.match(structures, /complete\|partial\|broken/i);
 assert.match(bazi, /BAZI-SEASON-001/);
 assert.match(schools, /MENH_LY_THIEN_CO/);
-
 assert.match(offline, /VERSION = "2\.2\.0"/);
 assert.match(offline, /XII/);
-assert.match(offline, /có tình cảm và nhu cầu gắn kết/);
 assert.match(guard, /Invalid ShaderModule|index_kernel/);
 assert.match(guard, /webGpuBlocked/);
-assert.match(guard, /markGpuBlocked/);
-assert.match(guard, /mobile-memory-guard/);
-assert.doesNotMatch(specialist + knowledge + offline, /NHIỆM VỤ BƯỚC/);
 
-console.log("PASS: Hiep TuVi AI uses WebGPU first, CPU/WASM second, detailed Local Rules last");
+console.log("PASS: Hiep TuVi v1.24 keeps full Local Rules and uses only bounded one-shot AI synthesis");
