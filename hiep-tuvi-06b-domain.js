@@ -1,7 +1,7 @@
 "use strict";
 
 (function installHiepTuVi06BDomain(root) {
-  const VERSION = "0.1.0";
+  const VERSION = "0.1.1";
   const PALACES = Object.freeze(["Mệnh", "Phụ Mẫu", "Phúc Đức", "Điền Trạch", "Quan Lộc", "Nô Bộc", "Thiên Di", "Tật Ách", "Tài Bạch", "Tử Tức", "Phu Thê", "Huynh Đệ"]);
   let busy = false;
 
@@ -15,6 +15,34 @@
       .replace(/[^a-z0-9\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;",
+    })[c]);
+  }
+
+  function renderSimpleMarkdown(value) {
+    return String(value || "").split(/\r?\n/).map((line) => {
+      const text = escapeHtml(line);
+      if (/^###\s+/.test(line)) return `<h3>${escapeHtml(line.replace(/^###\s+/, ""))}</h3>`;
+      if (/^####\s+/.test(line)) return `<h4>${escapeHtml(line.replace(/^####\s+/, ""))}</h4>`;
+      if (/^>\s?/.test(line)) return `<blockquote>${escapeHtml(line.replace(/^>\s?/, ""))}</blockquote>`;
+      if (/^[-*]\s+/.test(line)) return `<p>• ${escapeHtml(line.replace(/^[-*]\s+/, ""))}</p>`;
+      if (!line.trim()) return "";
+      return `<p>${text}</p>`;
+    }).join("");
+  }
+
+  function getChart() {
+    if (root.__HIEP_TUVI_CHART__) return root.__HIEP_TUVI_CHART__;
+    try {
+      const frame = document.getElementById("tuviAppFrame");
+      return frame?.contentWindow?.__HIEP_TUVI_CHART__ || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   function starName(star) {
@@ -120,13 +148,8 @@ ${clip(knowledge, 4200)}
     return prompt;
   }
 
-  function statusNode() {
-    return document.getElementById("hiep06bStatus");
-  }
-
-  function outputNode() {
-    return document.getElementById("hiep06bOutput");
-  }
+  function statusNode() { return document.getElementById("hiep06bStatus"); }
+  function outputNode() { return document.getElementById("hiep06bOutput"); }
 
   function setStatus(text, mode = "") {
     const node = statusNode();
@@ -163,8 +186,11 @@ ${clip(knowledge, 4200)}
 
   async function run() {
     if (busy) return;
-    const chart = root.__HIEP_TUVI_CHART__;
-    if (!chart) return alert("Chưa lập lá số.");
+    const chart = getChart();
+    if (!chart) {
+      setStatus("Chưa có lá số. Hãy lập lá số trong khung tuvi111 trước.", "error");
+      return;
+    }
     const guard = resourceGuard();
     if (guard) {
       setStatus(guard, "error");
@@ -186,7 +212,7 @@ ${clip(knowledge, 4200)}
 
     setBusy(true);
     const output = outputNode();
-    if (output) output.innerHTML = '<div class="ai-loading"><span></span><p>Đang tải/khởi tạo Hiep-Tuvi 0.6B. Lần đầu có thể tải khoảng 0,5–0,6 GB model.</p></div>';
+    if (output) output.innerHTML = '<div class="ai-loading"><p>Đang tải/khởi tạo Hiep-Tuvi 0.6B. Lần đầu có thể tải khoảng 0,5–0,6 GB model.</p></div>';
     try {
       setStatus("Đang chuẩn bị Hiep-Tuvi 0.6B...", "busy");
       await model.ensureModel({ onProgress });
@@ -198,15 +224,15 @@ ${clip(knowledge, 4200)}
         ? "Kết quả thử nghiệm còn ngắn hoặc chưa bám tên cung; chưa đủ điều kiện thay Local Rules."
         : "Kết quả đạt gate hình thức ban đầu; cần đối chiếu nội dung với Local Rules và @Hiep Tuvi.";
       if (output) {
-        const body = typeof root.renderMarkdownSafe === "function" ? root.renderMarkdownSafe(text) : text;
-        output.innerHTML = `<div class="ai-meta">HIEP-TUVI 0.6B EXPERIMENT · ${result.backend || "webgpu"} · ${result.dtype || "q4f16"}</div><div class="ai-lite-body">${body}</div><p class="muted">${qualityNote}</p>`;
+        const body = typeof root.renderMarkdownSafe === "function" ? root.renderMarkdownSafe(text) : renderSimpleMarkdown(text);
+        output.innerHTML = `<div class="ai-meta">HIEP-TUVI 0.6B EXPERIMENT · ${escapeHtml(result.backend || "webgpu")} · ${escapeHtml(result.dtype || "q4f16")}</div><div class="ai-lite-body">${body}</div><p class="muted">${escapeHtml(qualityNote)}</p>`;
         output.dataset.raw = text;
       }
-      setStatus("0.6B đã trả kết quả · model vẫn đang giữ trong GPU để thử cung khác", "ready");
+      setStatus("0.6B đã trả kết quả · model vẫn giữ trong GPU để thử cung khác", "ready");
     } catch (error) {
       const message = String(error?.message || error);
-      if (output) output.innerHTML = `<div class="ai-error"><b>Hiep-Tuvi 0.6B chưa chạy được trên thiết bị này.</b><br>${message.replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c])}</div>`;
-      setStatus("0.6B lỗi · Local Rules không bị ảnh hưởng", "error");
+      if (output) output.innerHTML = `<div class="ai-error"><b>Hiep-Tuvi 0.6B chưa chạy được trên thiết bị này.</b><br>${escapeHtml(message)}</div>`;
+      setStatus("0.6B lỗi · app gốc/Local Rules không bị ảnh hưởng", "error");
       try { await model.unload?.(); } catch (_) {}
     } finally {
       setBusy(false);
@@ -225,10 +251,8 @@ ${clip(knowledge, 4200)}
   }
 
   function bind() {
-    const runButton = document.getElementById("hiep06bRunButton");
-    const unloadButton = document.getElementById("hiep06bUnloadButton");
-    runButton?.addEventListener("click", run);
-    unloadButton?.addEventListener("click", unload);
+    document.getElementById("hiep06bRunButton")?.addEventListener("click", run);
+    document.getElementById("hiep06bUnloadButton")?.addEventListener("click", unload);
   }
 
   bind();
@@ -238,6 +262,7 @@ ${clip(knowledge, 4200)}
     PALACES,
     buildPrompt,
     resourceGuard,
+    getChart,
     run,
     unload,
   });
