@@ -1,7 +1,7 @@
 "use strict";
 
 (function initHiepNativeAI(root) {
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   let modelPromise = null;
   let viToEnPromise = null;
   let enToViPromise = null;
@@ -10,8 +10,16 @@
   let enToVi = null;
   let lastError = "";
 
+  function modelSupported() {
+    return typeof root.LanguageModel !== "undefined";
+  }
+
+  function translatorSupported() {
+    return typeof root.Translator !== "undefined";
+  }
+
   function supported() {
-    return typeof root.LanguageModel !== "undefined" && typeof root.Translator !== "undefined";
+    return modelSupported() && translatorSupported();
   }
 
   function progressMonitor(onProgress, label) {
@@ -29,53 +37,33 @@
   }
 
   async function availability() {
-    if (!supported()) return { ok: false, model: "unavailable", viToEn: "unavailable", enToVi: "unavailable" };
+    const result = { ok: false, model: "unavailable", viToEn: "unavailable", enToVi: "unavailable" };
     try {
-      const [model, a, b] = await Promise.all([
-        root.LanguageModel.availability({
+      if (modelSupported()) {
+        result.model = await root.LanguageModel.availability({
           expectedInputs: [{ type: "text", languages: ["en"] }],
           expectedOutputs: [{ type: "text", languages: ["en"] }],
-        }),
-        root.Translator.availability({ sourceLanguage: "vi", targetLanguage: "en" }),
-        root.Translator.availability({ sourceLanguage: "en", targetLanguage: "vi" }),
-      ]);
-      return { ok: model !== "unavailable" && a !== "unavailable" && b !== "unavailable", model, viToEn: a, enToVi: b };
+        });
+      }
+      if (translatorSupported()) {
+        [result.viToEn, result.enToVi] = await Promise.all([
+          root.Translator.availability({ sourceLanguage: "vi", targetLanguage: "en" }),
+          root.Translator.availability({ sourceLanguage: "en", targetLanguage: "vi" }),
+        ]);
+      }
+      result.ok = result.model !== "unavailable" && result.viToEn !== "unavailable" && result.enToVi !== "unavailable";
+      return result;
     } catch (error) {
       lastError = String(error?.message || error);
-      return { ok: false, model: "error", viToEn: "error", enToVi: "error", error: lastError };
+      return { ...result, error: lastError };
     }
   }
 
-  function prepareFromGesture(options = {}) {
-    if (!supported()) return Promise.reject(new Error("Chrome Built-in AI không khả dụng trên trình duyệt này."));
+  function prepareTranslatorsFromGesture(options = {}) {
+    if (!translatorSupported()) return Promise.reject(new Error("Chrome Translator API không khả dụng."));
     const onProgress = options.onProgress;
 
-    // Important: call create() before the first await so transient user activation is preserved.
-    if (!modelPromise && !modelSession) {
-      try {
-        modelPromise = root.LanguageModel.create({
-          expectedInputs: [{ type: "text", languages: ["en"] }],
-          expectedOutputs: [{ type: "text", languages: ["en"] }],
-          initialPrompts: [{
-            role: "system",
-            content: "You are Hiep TuVi AI. Interpret only the locked evidence supplied by tuvi111. Never recalculate stars. Be concise, causal, skeptical, and practical. Keep protected placeholder tokens unchanged.",
-          }],
-          monitor: progressMonitor(onProgress, "Đang chuẩn bị AI tích hợp trong Chrome..."),
-        }).then((session) => {
-          modelSession = session;
-          return session;
-        }).catch((error) => {
-          modelPromise = null;
-          lastError = String(error?.message || error);
-          throw error;
-        });
-      } catch (error) {
-        modelPromise = null;
-        lastError = String(error?.message || error);
-        return Promise.reject(error);
-      }
-    }
-
+    // Call create() immediately while transient user activation is still present.
     if (!viToEnPromise && !viToEn) {
       try {
         viToEnPromise = root.Translator.create({
@@ -93,6 +81,7 @@
       } catch (error) {
         viToEnPromise = null;
         lastError = String(error?.message || error);
+        return Promise.reject(error);
       }
     }
 
@@ -113,21 +102,65 @@
       } catch (error) {
         enToViPromise = null;
         lastError = String(error?.message || error);
+        return Promise.reject(error);
       }
     }
 
     return Promise.all([
-      modelSession ? Promise.resolve(modelSession) : modelPromise,
       viToEn ? Promise.resolve(viToEn) : viToEnPromise,
       enToVi ? Promise.resolve(enToVi) : enToViPromise,
-    ]).then(([session, toEn, toVi]) => {
-      if (!session || !toEn || !toVi) throw new Error("Chrome Built-in AI chưa đủ model/dịch để chạy tiếng Việt.");
+    ]).then(([toEn, toVi]) => {
+      if (!toEn || !toVi) throw new Error("Chrome Translator chưa sẵn sàng cho Việt ↔ Anh.");
+      return { ok: true, backend: "chrome-translator" };
+    });
+  }
+
+  function prepareFromGesture(options = {}) {
+    if (!modelSupported()) return Promise.reject(new Error("Chrome Built-in LanguageModel không khả dụng."));
+    const onProgress = options.onProgress;
+
+    // Important: call create() before the first await so transient user activation is preserved.
+    if (!modelPromise && !modelSession) {
+      try {
+        modelPromise = root.LanguageModel.create({
+          expectedInputs: [{ type: "text", languages: ["en"] }],
+          expectedOutputs: [{ type: "text", languages: ["en"] }],
+          initialPrompts: [{
+            role: "system",
+            content: "You are Hiep TuVi AI. Interpret only locked evidence supplied by tuvi111. Never recalculate stars. Be concise, causal, skeptical, and practical. Keep protected placeholder tokens unchanged.",
+          }],
+          monitor: progressMonitor(onProgress, "Đang chuẩn bị AI tích hợp trong Chrome..."),
+        }).then((session) => {
+          modelSession = session;
+          return session;
+        }).catch((error) => {
+          modelPromise = null;
+          lastError = String(error?.message || error);
+          throw error;
+        });
+      } catch (error) {
+        modelPromise = null;
+        lastError = String(error?.message || error);
+        return Promise.reject(error);
+      }
+    }
+
+    const translators = prepareTranslatorsFromGesture(options);
+    return Promise.all([
+      modelSession ? Promise.resolve(modelSession) : modelPromise,
+      translators,
+    ]).then(([session]) => {
+      if (!session || !viToEn || !enToVi) throw new Error("Chrome Built-in AI chưa đủ model/dịch để chạy tiếng Việt.");
       return { ok: true, backend: "chrome-built-in", model: "Gemini Nano / browser LanguageModel" };
     });
   }
 
   function prepared() {
     return Boolean(modelSession && viToEn && enToVi);
+  }
+
+  function translatorsPrepared() {
+    return Boolean(viToEn && enToVi);
   }
 
   function collectProtectedTerms(chart) {
@@ -166,6 +199,16 @@
     return value;
   }
 
+  async function translateProtected(text, sourceLanguage, targetLanguage, terms = []) {
+    if (!translatorsPrepared()) throw new Error("Chrome Translator chưa được khởi tạo từ thao tác người dùng.");
+    const protectedValue = protect(text, terms);
+    let translated;
+    if (sourceLanguage === "vi" && targetLanguage === "en") translated = await viToEn.translate(protectedValue.text);
+    else if (sourceLanguage === "en" && targetLanguage === "vi") translated = await enToVi.translate(protectedValue.text);
+    else throw new Error(`Cặp dịch không hỗ trợ: ${sourceLanguage}→${targetLanguage}`);
+    return { text: restore(translated, protectedValue.mapping), raw: String(translated || ""), mapping: protectedValue.mapping };
+  }
+
   async function generateVietnamese(prompt, options = {}) {
     if (!prepared()) throw new Error("Chrome Built-in AI chưa được khởi tạo từ thao tác người dùng.");
     const terms = options.terms || collectProtectedTerms(options.chart);
@@ -191,10 +234,15 @@
   root.HiepNativeAI = Object.freeze({
     VERSION,
     supported,
+    modelSupported,
+    translatorSupported,
     availability,
     prepareFromGesture,
+    prepareTranslatorsFromGesture,
     prepared,
+    translatorsPrepared,
     collectProtectedTerms,
+    translateProtected,
     generateVietnamese,
     destroyModelSession,
     get lastError() { return lastError; },
