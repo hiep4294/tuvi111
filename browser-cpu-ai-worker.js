@@ -1,7 +1,7 @@
 "use strict";
 
 const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
-const MODEL_ID = "onnx-community/Qwen2.5-0.5B-Instruct";
+const MODEL_ID = "onnx-community/SmolLM2-135M-Instruct-ONNX-MHA";
 const DTYPE = "q8";
 let generator = null;
 let loadingPromise = null;
@@ -14,8 +14,9 @@ async function loadTransformers() {
         mod.env.useBrowserCache = true;
         mod.env.allowRemoteModels = true;
         if (mod.env.backends?.onnx?.wasm) {
+          // GitHub Pages is normally not cross-origin isolated; one WASM thread is the safest path.
           mod.env.backends.onnx.wasm.numThreads = self.crossOriginIsolated
-            ? Math.max(1, Math.min(4, Number(self.navigator?.hardwareConcurrency || 2)))
+            ? Math.max(1, Math.min(2, Number(self.navigator?.hardwareConcurrency || 2)))
             : 1;
         }
       } catch (_) {}
@@ -38,8 +39,8 @@ function postProgress(requestId, info = {}) {
       file: String(info.file || ""),
       progress: Number.isFinite(progress) ? progress / (progress > 1 ? 100 : 1) : undefined,
       text: Number.isFinite(progress)
-        ? `Đang tải AI CPU ${Math.max(0, Math.min(100, progress > 1 ? progress : progress * 100)).toFixed(0)}%`
-        : "Đang chuẩn bị AI CPU/WASM...",
+        ? `Đang tải AI CPU Lite ${Math.max(0, Math.min(100, progress > 1 ? progress : progress * 100)).toFixed(0)}%`
+        : "Đang chuẩn bị AI CPU Lite/WASM...",
     },
   });
 }
@@ -56,7 +57,7 @@ async function ensureGenerator(requestId) {
     },
   }).then((value) => {
     generator = value;
-    self.postMessage({ type: "ready", requestId, data: { ok: true, model: MODEL_ID, backend: "cpu-wasm" } });
+    self.postMessage({ type: "ready", requestId, data: { ok: true, model: MODEL_ID, backend: "cpu-wasm-lite" } });
     return value;
   }).finally(() => {
     loadingPromise = null;
@@ -77,30 +78,31 @@ function extractText(output) {
 
 async function generate(requestId, prompt, options = {}) {
   const pipe = await ensureGenerator(requestId);
-  const maxNewTokens = Math.max(128, Math.min(850, Number(options.maxTokens || 600)));
+  const maxNewTokens = Math.max(96, Math.min(360, Number(options.maxTokens || 280)));
+  const clippedPrompt = String(prompt || "").slice(0, 8000);
   const messages = [
     {
       role: "system",
-      content: "Bạn là Hiep TuVi AI. Chỉ diễn giải FACT/CALC và rule được cung cấp; không tự an lại sao; viết tiếng Việt rõ, có cơ chế, không một sao = một kết luận.",
+      content: "You are a compact Hiep TuVi synthesis editor. Use only supplied locked facts. Never recalculate stars. Do not invent. Keep protected tokens unchanged. Return a concise structured synthesis, not a full twelve-palace report.",
     },
-    { role: "user", content: String(prompt || "") },
+    { role: "user", content: clippedPrompt },
   ];
   self.postMessage({
     type: "progress",
     requestId,
-    progress: { status: "generating", text: "AI CPU/WASM đang viết báo cáo..." },
+    progress: { status: "generating", text: "AI CPU Lite đang tổng hợp ngắn..." },
   });
   const output = await pipe(messages, {
     max_new_tokens: maxNewTokens,
     do_sample: false,
-    repetition_penalty: 1.08,
+    repetition_penalty: 1.06,
   });
   const text = extractText(output);
-  if (!text) throw new Error("AI CPU/WASM không trả về nội dung.");
+  if (!text) throw new Error("AI CPU Lite/WASM không trả về nội dung.");
   return {
     text,
     model: MODEL_ID,
-    backend: "cpu-wasm",
+    backend: "cpu-wasm-lite",
     local: true,
   };
 }
@@ -111,7 +113,7 @@ self.onmessage = async (event) => {
   try {
     if (message.type === "init") {
       await ensureGenerator(requestId);
-      self.postMessage({ type: "result", requestId, data: { ok: true, model: MODEL_ID, backend: "cpu-wasm" } });
+      self.postMessage({ type: "result", requestId, data: { ok: true, model: MODEL_ID, backend: "cpu-wasm-lite" } });
       return;
     }
     if (message.type === "generate") {
@@ -127,10 +129,6 @@ self.onmessage = async (event) => {
     }
     throw new Error(`CPU AI request không hỗ trợ: ${String(message.type || "")}`);
   } catch (error) {
-    self.postMessage({
-      type: "error",
-      requestId,
-      error: String(error?.message || error),
-    });
+    self.postMessage({ type: "error", requestId, error: String(error?.message || error) });
   }
 };

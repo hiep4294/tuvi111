@@ -1,11 +1,11 @@
 "use strict";
 
 (function initHiepCpuAI(root) {
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const MODEL = Object.freeze({
-    id: "onnx-community/Qwen2.5-0.5B-Instruct",
-    label: "Qwen2.5 0.5B — CPU/WASM dự phòng (~0.5 GB model)",
-    backend: "cpu-wasm",
+    id: "onnx-community/SmolLM2-135M-Instruct-ONNX-MHA",
+    label: "SmolLM2 135M — CPU Lite/WASM (~0.14 GB q8)",
+    backend: "cpu-wasm-lite",
   });
 
   let worker = null;
@@ -19,9 +19,9 @@
 
   function ensureWorker() {
     if (worker) return worker;
-    if (!available()) throw new Error("Trình duyệt không hỗ trợ Web Worker/WebAssembly cho AI CPU.");
-    const url = new URL("browser-cpu-ai-worker.js?v=1.0.0", location.href);
-    worker = new Worker(url, { type: "module", name: "hiep-tuvi-cpu-ai" });
+    if (!available()) throw new Error("Trình duyệt không hỗ trợ Web Worker/WebAssembly cho AI CPU Lite.");
+    const url = new URL("browser-cpu-ai-worker.js?v=1.1.0", location.href);
+    worker = new Worker(url, { type: "module", name: "hiep-tuvi-cpu-ai-lite" });
     worker.onmessage = (event) => {
       const message = event.data || {};
       const id = Number(message.requestId || 0);
@@ -37,14 +37,14 @@
       if (!task) return;
       pending.delete(id);
       clearTimeout(task.timer);
-      if (message.type === "error") task.reject(new Error(message.error || "AI CPU lỗi không xác định."));
+      if (message.type === "error") task.reject(new Error(message.error || "AI CPU Lite lỗi không xác định."));
       else {
-        if (message.data?.ok && message.data?.backend === "cpu-wasm") ready = true;
+        if (message.data?.ok && /cpu-wasm/.test(String(message.data?.backend || ""))) ready = true;
         task.resolve(message.data ?? message);
       }
     };
     worker.onerror = (event) => {
-      const error = new Error(event?.message || "Không khởi động được AI CPU/WASM.");
+      const error = new Error(event?.message || "Không khởi động được AI CPU Lite/WASM.");
       for (const [id, task] of pending) {
         clearTimeout(task.timer);
         task.reject(error);
@@ -60,11 +60,11 @@
   function request(type, payload = {}, options = {}) {
     const active = ensureWorker();
     const requestId = nextId++;
-    const timeoutMs = Math.max(60000, Number(options.timeoutMs || 45 * 60 * 1000));
+    const timeoutMs = Math.max(30000, Number(options.timeoutMs || 12 * 60 * 1000));
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(requestId);
-        reject(new Error("AI CPU/WASM không phản hồi trong giới hạn thời gian."));
+        reject(new Error("AI CPU Lite/WASM không phản hồi trong giới hạn thời gian."));
       }, timeoutMs);
       pending.set(requestId, { resolve, reject, timer, onProgress: options.onProgress });
       active.postMessage({ type, requestId, ...payload });
@@ -79,10 +79,10 @@
   }
 
   async function generate(prompt, options = {}) {
-    if (!String(prompt || "").trim()) throw new Error("Prompt AI CPU đang trống.");
-    const maxTokens = Math.max(128, Math.min(850, Number(options.maxTokens || 600)));
+    if (!String(prompt || "").trim()) throw new Error("Prompt AI CPU Lite đang trống.");
+    const maxTokens = Math.max(96, Math.min(360, Number(options.maxTokens || 280)));
     const data = await request("generate", {
-      prompt: String(prompt),
+      prompt: String(prompt).slice(0, 8000),
       options: { maxTokens },
     }, options);
     ready = true;
@@ -91,7 +91,7 @@
 
   async function unload() {
     if (!worker) return;
-    try { await request("unload", {}, { timeoutMs: 60000 }); } catch (_) {}
+    try { await request("unload", {}, { timeoutMs: 30000 }); } catch (_) {}
     try { worker.terminate(); } catch (_) {}
     worker = null;
     ready = false;

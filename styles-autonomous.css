@@ -27,6 +27,41 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .offline-actions li { margin: 5px 0; }
 .offline-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
 
+.ai-lite-status,
+.ai-lite-fallback-note,
+.ai-lite-enhancement {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+.ai-lite-status {
+  border-left: 4px solid #9a6a18;
+  background: #fff8e8;
+  color: #6f4a0f;
+  font-weight: 700;
+}
+.ai-lite-fallback-note {
+  border-left: 4px solid #0f766e;
+  background: #eef8f5;
+  color: #115e59;
+}
+.ai-lite-enhancement {
+  border: 1px solid #c9ded8;
+  border-left: 5px solid #0f766e;
+  background: #f7fbfa;
+}
+.ai-lite-enhancement .ai-meta {
+  margin-bottom: 10px;
+  font-weight: 800;
+  color: #115e59;
+}
+.ai-lite-body {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.ai-lite-body > :first-child { margin-top: 0; }
+.ai-lite-body > :last-child { margin-bottom: 0; }
+
 @media (max-width: 680px) {
   .topbar { padding: 16px; gap: 14px; }
   .topbar h1 { font-size: 30px; }
@@ -39,6 +74,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .selector-bar button, .prompt-controls button { flex: 1 1 auto; }
   .toolbar-actions { width: 100%; }
   .toolbar-actions button { flex: 1; }
+  .ai-lite-status, .ai-lite-fallback-note, .ai-lite-enhancement { padding: 10px 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
