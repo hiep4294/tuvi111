@@ -24,24 +24,25 @@ assert.match(controller, /hiep-tuvi-06b-worker\.js\?v=0\.1\.0/);
 assert.match(domain, /180–320 từ/);
 assert.match(domain, /Không phải vì X đơn thuần\. Quan trọng là/);
 assert.match(domain, /knowledgeForPalaces/);
+assert.match(domain, /validateOutput/);
+assert.match(domain, /buildRepairPrompt/);
+assert.match(domain, /đang tự sửa 1 lượt/);
 assert.match(domain, /tuviAppFrame/);
 
-// Standalone experiment page remains available for isolated diagnostics.
 assert.match(html, /Hiep TuVi 0\.6B — thử nghiệm chuyên ngành/);
 assert.match(html, /id="tuviAppFrame"/);
 assert.match(html, /id="hiep06bRunButton"/);
-assert.match(html, /hiep-tuvi-06b-domain\.js\?v=0\.1\.1/);
+assert.match(html, /hiep-tuvi-06b-domain\.js\?v=0\.2\.0/);
 assert.match(html, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
 assert.match(html, /connect-src[^;]*https:\/\/huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.xethub\.hf\.co/);
 
-// v1.25 integrates the same bounded 0.6B controller directly in the main UI.
 assert.match(mainHtml, /id="hiep06bPanel"/);
 assert.match(mainHtml, /id="hiep06bPalaceSelect"/);
 assert.match(mainHtml, /id="hiep06bRunButton"/);
 assert.match(mainHtml, /hiep-tuvi-06b\.js\?v=0\.1\.0/);
-assert.match(mainHtml, /hiep-tuvi-06b-domain\.js\?v=0\.1\.1/);
+assert.match(mainHtml, /hiep-tuvi-06b-domain\.js\?v=0\.2\.0/);
 assert.doesNotMatch(mainHtml, /<script src="hiep-tuvi-06b-worker\.js/);
 assert.match(mainHtml, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
 assert.match(mainHtml, /connect-src[^;]*https:\/\/huggingface\.co/);
@@ -76,6 +77,7 @@ const chart = {
       stars: [
         { name: "Văn Khúc", dignity: "H", nature: "support" },
         { name: "Thiên Hình", dignity: "Đ", nature: "pressure" },
+        { name: "Hóa Kỵ", nature: "transformation" },
         { name: "Đế Vượng", nature: "trang_sinh" },
       ],
     },
@@ -99,4 +101,28 @@ assert.match(prompt, /Hóa Kỵ/);
 assert.match(prompt, /FACT\/CALC đã khóa bởi tuvi111/);
 assert.match(prompt, /\/no_think/);
 
-console.log("PASS: Hiep TuVi 0.6B remains bounded and is integrated into the main app on-demand");
+const req = context.HiepTuVi06BDomain.evidenceRequirements(chart, "Mệnh");
+assert.equal(req.requiresTuan, true);
+assert.equal(req.requiresTriet, true);
+assert.equal(req.requiresTrangSinh, true);
+assert.equal(req.requiresTuHoa, true);
+assert.equal(req.requiresGeometry, true);
+assert.equal(req.isVoChinhDieu, true);
+
+const badText = `### MỆNH – DẬU\n#### Văn Khúc · Thiên Hình\n${"Nội dung sơ lược không kiểm tra đầy đủ quan hệ và modifier. ".repeat(15)}\n> Tôi đọc: cần quan sát thực tế.`;
+const badIssues = context.HiepTuVi06BDomain.validateOutput(badText, chart, "Mệnh");
+assert.ok(badIssues.some((x) => x.includes("tam hợp/đối cung")));
+assert.ok(badIssues.some((x) => x.includes("Tuần")));
+assert.ok(badIssues.some((x) => x.includes("Triệt")));
+assert.ok(badIssues.some((x) => x.includes("Tràng Sinh")));
+assert.ok(badIssues.some((x) => x.includes("Tứ Hóa")));
+assert.ok(badIssues.some((x) => x.includes("Vô Chính Diệu")));
+
+const goodText = `### MỆNH – DẬU\n#### Văn Khúc · Thiên Hình · Hóa Kỵ · Đế Vượng\n${"Đây là cung Vô Chính Diệu nên phải mượn đối cung và tam hợp để đọc cấu trúc. Đối cung và tam hợp cho thấy cơ chế cần kiểm chứng chéo. Tứ Hóa ở đây chỉ là modifier, Hóa Kỵ không tự tạo verdict. Tuần và Triệt cùng hiện diện nên làm gián đoạn hoặc tái cấu trúc cách biểu hiện, không xóa sao. Đế Vượng thuộc vòng Tràng Sinh cho biết pha khí mạnh nhưng vẫn phải đặt trong toàn bộ hình học. Không phải vì một sao đơn thuần. Quan trọng là cách các node phối hợp và phản chứng lẫn nhau. ".repeat(5)}\n> Tôi đọc: cấu trúc có lực nhưng phải kiểm qua đối cung, tam hợp và điều kiện thực tế.`;
+assert.deepEqual(context.HiepTuVi06BDomain.validateOutput(goodText, chart, "Mệnh"), []);
+
+const repair = context.HiepTuVi06BDomain.buildRepairPrompt(prompt, badText, badIssues);
+assert.match(repair, /QUALITY GATE/);
+assert.match(repair, /không thêm FACT mới/);
+
+console.log("PASS: Hiep TuVi 0.6B is bounded, evidence-aware, quality-gated, and self-repairs once");
