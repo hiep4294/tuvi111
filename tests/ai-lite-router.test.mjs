@@ -9,7 +9,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "ai-lite-router.js"), "utf8");
 const autonomous = readFileSync(join(root, "autonomous.js"), "utf8");
 
-assert.match(source, /VERSION = "1\.6\.0"/);
+assert.match(source, /VERSION = "1.7.0"/);
 assert.match(source, /GPU_LITE_MODEL = "Qwen3-1\.7B-q4f16_1-MLC"/);
 assert.match(source, /buildBrowserSummaryPrompt/);
 assert.match(source, /buildCompactEvidenceText/);
@@ -194,7 +194,7 @@ test("scheduled AI choice uses the bridge even if a newer selection is local", a
   window.HiepCloudAI.settings = ({ bridge }) => ({ mode: bridge ? "worker" : "direct", token: "demo" });
   window.HiepCloudAI.analyze = async (_, { bridge, timeoutMs }) => {
     assert.equal(bridge, true);
-    assert.equal(timeoutMs, 600000);
+    assert.equal(timeoutMs, 650000);
     return { text: "Luận giải", provider: "chatgpt-desktop" };
   };
   assert.equal((await window.runGeminiAnalysis({ automatic: true, analysisChoice: "ai" })).backend, "cloud");
@@ -222,7 +222,7 @@ test("desktop bridge displays the waiting message, safe reply and provider label
   window.HiepCloudAI.settings = () => ({ mode: "worker", token: "demo" });
   window.HiepCloudAI.analyze = async (prompt, { timeoutMs }) => {
     assert.ok(prompt.includes(localRaw));
-    assert.equal(timeoutMs, 600000);
+    assert.equal(timeoutMs, 650000);
     return { text: "<kết quả>", model: "ChatGPT", provider: "chatgpt-desktop" };
   };
   const pending = window.runGeminiAnalysis({ automatic: true });

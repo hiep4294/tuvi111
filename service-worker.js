@@ -1,4 +1,4 @@
-const CACHE = "tuvi-battu-web-v1.30-bridge";
+const CACHE = "tuvi-battu-web-v1.31-bridge";
 const CORE_ASSETS = [
   "./",
   "./index.html",
