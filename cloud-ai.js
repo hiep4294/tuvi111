@@ -4,14 +4,17 @@
   const ENDPOINT = "tuvi-gemini-worker-endpoint";
   const PROVIDER = "tuvi-cloud-provider";
   const KEY = "tuvi-cloud-key";
+  const TOKEN = "tuvi-bridge-token";
+  const DEFAULT_BRIDGE_ENDPOINT = "https://baohanh.103-161-17-148.sslip.io/tuvi-bridge";
   const DEFAULT_TIMEOUT_MS = 90000;
   const MODELS = { anthropic: "claude-sonnet-5-5", openai: "gpt-5-mini" };
 
   function workerBase(value) {
     if (!value) return "";
     const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
-      throw new Error("Địa chỉ Worker phải là URL HTTPS.");
+    const local = url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+    if ((!local && url.protocol !== "https:") || url.username || url.password || url.search || url.hash) {
+      throw new Error("Địa chỉ Worker phải dùng HTTPS hoặc HTTP trên máy cục bộ.");
     }
     return url.href.replace(/\/+$/, "").replace(/\/(health|analyze)$/, "");
   }
@@ -22,13 +25,14 @@
       if (provider === "anthropic" || provider === "openai") {
         return { mode: "direct", provider, key: root.localStorage.getItem(KEY) || "", endpoint: "" };
       }
-      return { mode: "worker", endpoint: workerBase(root.localStorage.getItem(ENDPOINT)), provider: "anthropic", key: "" };
+      const endpoint = workerBase(root.localStorage.getItem(ENDPOINT) || DEFAULT_BRIDGE_ENDPOINT);
+      return { mode: "worker", endpoint, token: root.localStorage.getItem(TOKEN) || "", provider: "anthropic", key: "" };
     } catch (_) {
       return { mode: "worker", endpoint: "", provider: "anthropic", key: "" };
     }
   }
 
-  function save({ mode, endpoint, provider, key }) {
+  function save({ mode, endpoint, provider, key, token = "" }) {
     const storage = root.localStorage;
     if (mode === "direct") {
       if (provider !== "anthropic" && provider !== "openai") throw new Error("Nhà cung cấp không hợp lệ.");
@@ -36,19 +40,23 @@
       storage.setItem(PROVIDER, provider);
       if (key.trim()) storage.setItem(KEY, key.trim());
       storage.removeItem(ENDPOINT);
+      storage.removeItem(TOKEN);
     } else {
       let base;
       try { base = workerBase(endpoint.trim()); }
-      catch (_) { throw new Error("Địa chỉ Worker phải là URL HTTPS hợp lệ."); }
+      catch (_) { throw new Error("Địa chỉ Worker phải dùng HTTPS hoặc HTTP trên máy cục bộ."); }
       if (base) storage.setItem(ENDPOINT, base);
       else storage.removeItem(ENDPOINT);
+      if (token.trim()) storage.setItem(TOKEN, token.trim());
+      else storage.removeItem(TOKEN);
       storage.removeItem(KEY);
       storage.removeItem(PROVIDER);
     }
   }
 
   function configured(config) {
-    return Boolean(config.mode === "direct" ? config.key : config.endpoint);
+    if (config.mode === "direct") return Boolean(config.key);
+    return Boolean(config.endpoint && (config.endpoint !== DEFAULT_BRIDGE_ENDPOINT || config.token));
   }
 
   function isAvailable() {
@@ -97,16 +105,32 @@
     return { base: "https://api.openai.com/v1", headers: { Authorization: `Bearer ${key}` } };
   }
 
-  async function analyze(prompt, { maxTokens = 1800, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  function workerHeaders(config) {
+    return config.token ? { "X-Tuvi-Token": config.token } : {};
+  }
+
+  async function workerHealth(config, signal) {
+    try {
+      const data = await request(config.endpoint + "/health", workerHeaders(config), undefined, signal, 5000);
+      if (data?.ok !== true) throw new Error("Worker chưa sẵn sàng.");
+      return data;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      throw Object.assign(new Error("Không kết nối được cầu nối. " + error.message), { code: "BRIDGE_OFFLINE" });
+    }
+  }
+
+  async function analyze(prompt, { maxTokens = 1800, signal, timeoutMs } = {}) {
     const config = activeSettings();
     let { provider } = config;
     let model = MODELS[provider];
     let text;
     if (config.mode === "worker") {
-      const data = await request(config.endpoint + "/analyze", {}, {
+      await workerHealth(config, signal);
+      const data = await request(config.endpoint + "/analyze", workerHeaders(config), {
         prompt, provider: "auto", max_output_tokens: maxTokens,
-        ...(timeoutMs !== DEFAULT_TIMEOUT_MS ? { timeout_ms: timeoutMs } : {}),
-      }, signal, timeoutMs);
+        ...(timeoutMs !== undefined ? { timeout_ms: timeoutMs } : {}),
+      }, signal, timeoutMs ?? 600000);
       text = data.text;
       provider = data.provider || "gemini";
       model = data.model;
@@ -130,10 +154,9 @@
   async function test() {
     const config = activeSettings();
     if (config.mode === "worker") {
-      const health = await request(config.endpoint + "/health", {});
-      if (!health.ok) throw new Error("Worker chưa sẵn sàng.");
+      const health = await workerHealth(config);
       if (health.providers && !Object.values(health.providers).some(Boolean)) throw new Error("Worker chưa cấu hình khóa API.");
-      return "Worker";
+      return health.service === "tuvi-bridge" ? "ChatGPT (trò chuyện)" : "Worker";
     }
     const { base, headers } = directApi(config);
     const model = MODELS[config.provider];

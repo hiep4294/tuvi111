@@ -59,6 +59,7 @@ function setGeminiStatus(message, mode = "") {
 
 function showCloudFields() {
   const direct = $("cloudMode").value === "direct";
+  $("bridgeToken").closest("label").hidden = direct;
   $("geminiEndpoint").closest("label").hidden = direct;
   $("cloudProvider").closest("label").hidden = !direct;
   $("cloudKey").closest("label").hidden = !direct;
@@ -72,9 +73,10 @@ function showCloudStatus() {
 function restoreGeminiSettings() {
   showCloudStatus();
   if (!window.HiepCloudAI) return;
-  const { mode, endpoint, provider, key } = window.HiepCloudAI.settings();
+  const { mode, endpoint, provider, key, token } = window.HiepCloudAI.settings();
   $("cloudMode").value = mode;
   $("geminiEndpoint").value = endpoint;
+  $("bridgeToken").value = token || "";
   $("cloudProvider").value = provider;
   $("cloudKey").value = key;
   showCloudFields();
@@ -85,6 +87,7 @@ function saveGeminiSettings() {
     window.HiepCloudAI.save({
       mode: $("cloudMode").value,
       endpoint: $("geminiEndpoint").value,
+      token: $("bridgeToken").value,
       provider: $("cloudProvider").value,
       key: $("cloudKey").value,
     });

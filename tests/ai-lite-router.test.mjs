@@ -7,8 +7,9 @@ import test from "node:test";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "ai-lite-router.js"), "utf8");
+const autonomous = readFileSync(join(root, "autonomous.js"), "utf8");
 
-assert.match(source, /VERSION = "1\.3\.0"/);
+assert.match(source, /VERSION = "1\.5\.0"/);
 assert.match(source, /GPU_LITE_MODEL = "Qwen3-1\.7B-q4f16_1-MLC"/);
 assert.match(source, /buildBrowserSummaryPrompt/);
 assert.match(source, /buildCompactEvidenceText/);
@@ -34,7 +35,12 @@ assert.doesNotMatch(source, /runCpuReport/);
 
 function element(tag) {
   return {
-    tag, dataset: {}, childNodes: [],
+    tag, dataset: {}, style: {}, childNodes: [], value: "",
+    addEventListener(event, handler) { this[event] = handler; },
+    setAttribute(name, value) { this[name] = value; },
+    focus() { this.focused = true; },
+    select() { this.selected = true; },
+    appendChild(node) { this.append(node); },
     remove() {
       if (this.parent) this.parent.childNodes = this.parent.childNodes.filter(node => node !== this);
       this.parent = null;
@@ -66,8 +72,13 @@ function element(tag) {
 const localRaw = "Local Rules 12 cung\n\n---\n\nDữ liệu Bát Tự";
 const localTitle = "Hiep TuVi — báo cáo cục bộ đầy đủ";
 
-function router({ cloudFails = false, online = true, configured = true } = {}) {
+function router({ cloudFails = false, online = true, configured = true, storage = new Map() } = {}) {
   const calls = [];
+  const alerts = [];
+  const toasts = [];
+  const clip = [];
+  const tabs = [];
+  const body = element("body");
   const output = element("div");
   const panel = element("section");
   const heading = element("h2");
@@ -78,16 +89,42 @@ function router({ cloudFails = false, online = true, configured = true } = {}) {
   local.innerHTML = "<p>Báo cáo Local Rules</p>";
   output.append(local);
   output.dataset.raw = localRaw;
+  const nodes = {
+    geminiOutput: output,
+    geminiResultPanel: panel,
+    chatGptPaste: { ...element("div"), hidden: true },
+    chatGptReply: element("textarea"),
+  };
+  for (const id of ["sendChatGptButton", "pasteChatGptButton", "readChatGptClipboardButton",
+    "applyChatGptButton", "cancelChatGptButton", "clearChatGptButton"]) nodes[id] = element("button");
+  nodes.clearChatGptButton.hidden = true;
   const window = {
-    navigator: { onLine: online },
+    navigator: { onLine: online, clipboard: { async writeText(text) { clip.push(text); } } },
     document: {
-      getElementById: id => ({ geminiOutput: output, geminiResultPanel: panel })[id],
+      getElementById: id => nodes[id],
       createElement: element,
+      body,
+      execCommand(command) {
+        assert.equal(command, "copy");
+        assert.equal(body.childNodes[0].selected, true);
+        clip.push(body.childNodes[0].value);
+        return true;
+      },
     },
+    localStorage: {
+      getItem: key => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: key => storage.delete(key),
+    },
+    open: (...args) => tabs.push(args),
+    alert: message => alerts.push(message),
+    toast: message => toasts.push(message),
+    addEventListener() {},
     __HIEP_TUVI_CHART__: { chart_id: "1" },
     HiepTuViAI: { buildBrowserSummaryPrompt: () => "full prompt", buildCompactEvidenceText: () => "CPU prompt" },
     HiepTuViKnowledge: {},
     HiepCloudAI: {
+      settings: () => ({ mode: "direct" }),
       isAvailable: () => online && configured,
       async analyze(prompt, { maxTokens, timeoutMs }) {
         calls.push("cloud");
@@ -106,8 +143,9 @@ function router({ cloudFails = false, online = true, configured = true } = {}) {
     setGeminiStatus(message) { this.status = message; },
   };
   window.window = window;
+  vm.runInNewContext(autonomous, window);
   vm.runInNewContext(source, window);
-  return { window, calls, output, local, heading };
+  return { window, calls, output, local, heading, nodes, storage, alerts, toasts, clip, tabs };
 }
 
 test("automatic and manual cloud read the full local report and display safe HTML above a closed source", async () => {
@@ -147,6 +185,37 @@ for (const [options, reason] of [
     assert.equal(heading.textContent, localTitle);
   });
 }
+
+test("desktop bridge displays the waiting message, safe reply and provider label", async () => {
+  const { window, output, local } = router();
+  window.HiepCloudAI.settings = () => ({ mode: "worker", token: "demo" });
+  window.HiepCloudAI.analyze = async (prompt, { timeoutMs }) => {
+    assert.ok(prompt.includes(localRaw));
+    assert.equal(timeoutMs, 600000);
+    return { text: "<kết quả>", model: "ChatGPT", provider: "chatgpt-desktop" };
+  };
+  const pending = window.runGeminiAnalysis({ automatic: true });
+  assert.equal(output.querySelector(".ai-lite-status").textContent, "ChatGPT đang luận giải trên máy nhà (có thể mất 1–5 phút)...");
+  await pending;
+  assert.equal(output.childNodes[0].textContent, "LUẬN GIẢI AI · ChatGPT (trò chuyện)");
+  assert.equal(output.childNodes[1].innerHTML, "&lt;kết quả&gt;");
+  assert.equal(output.querySelector("details").childNodes[1], local);
+});
+
+test("failed bridge health restores the report and identifies the offline home PC", async () => {
+  const { window, output, local, storage } = router();
+  storage.set("tuvi-bridge-token", "demo");
+  Object.assign(window, { URL, AbortController, setTimeout, clearTimeout });
+  const calls = [];
+  window.fetch = async url => { calls.push(url); return new Response(null, { status: 502 }); };
+  vm.runInNewContext(readFileSync(join(root, "cloud-ai.js"), "utf8"), window);
+  assert.equal((await window.runGeminiAnalysis({ automatic: true })).backend, "local-rules");
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].endsWith("/health"));
+  assert.equal(output.childNodes[0].textContent, "Máy ChatGPT đang tắt · hiển thị báo cáo cục bộ");
+  assert.equal(output.childNodes[1], local);
+  assert.equal(output.dataset.raw, localRaw);
+});
 
 test("cloud failure restores the original report after an earlier successful interpretation", async () => {
   const { window, output, local, heading } = router();
@@ -199,4 +268,128 @@ test("offline synthesis shows offline status and retains the local backend seque
   assert.equal(result.backend, "local-rules");
   assert.deepEqual(Array.from(result.diagnostics, entry => entry.backend), ["chrome-built-in", "webgpu-lite", "cpu-wasm-lite"]);
   assert.match(window.status, /Offline · dùng AI cục bộ\/Local Rules/);
+});
+
+test("sending to ChatGPT copies the original report even when it is inside closed details", async () => {
+  const { window, nodes, clip, tabs, toasts } = router();
+  await window.runGeminiAnalysis({ automatic: true });
+  await nodes.sendChatGptButton.click();
+  assert.match(clip[0], /BẮT ĐẦU BÁO CÁO CỤC BỘ/);
+  assert.ok(clip[0].includes(localRaw));
+  assert.doesNotMatch(clip[0], /<synthesis>/);
+  assert.deepEqual(tabs, [["https://chatgpt.com/", "_blank", "noopener"]]);
+  assert.equal(nodes.chatGptPaste.hidden, false);
+  assert.match(toasts.at(-1), /^Đã sao chép báo cáo\. Dán vào ChatGPT/);
+});
+
+test("sending falls back to textarea copy and requires a chart", async () => {
+  const { window, nodes, clip, tabs, alerts } = router({ configured: false });
+  window.navigator.clipboard.writeText = async () => { throw new Error("denied"); };
+  await nodes.sendChatGptButton.click();
+  assert.ok(clip[0].includes(localRaw));
+  assert.equal(window.document.body.childNodes.length, 0);
+  delete window.__HIEP_TUVI_CHART__;
+  await nodes.sendChatGptButton.click();
+  assert.deepEqual(alerts, ["Chưa lập lá số."]);
+  assert.equal(clip.length, 1);
+  assert.equal(tabs.length, 1);
+});
+
+test("applying ChatGPT uses safe rendering with closed details and removes the previous cloud error", async () => {
+  const { window, nodes, output, local, heading } = router({ cloudFails: true });
+  await window.runGeminiAnalysis({ automatic: true });
+  assert.ok(output.querySelector(".ai-lite-fallback-note"));
+
+  nodes.pasteChatGptButton.click();
+  assert.equal(nodes.chatGptPaste.hidden, false);
+  const text = "## Luận giải từ ChatGPT\n<img src=x onerror=alert(1)>";
+  nodes.chatGptReply.value = text;
+  nodes.applyChatGptButton.click();
+  const [label, body, details] = output.childNodes;
+  assert.equal(label.textContent, "LUẬN GIẢI AI · ChatGPT (trò chuyện)");
+  assert.match(body.innerHTML, /Luận giải từ ChatGPT\n&lt;img/);
+  assert.doesNotMatch(body.innerHTML, /<img/);
+  assert.equal(details.tag, "details");
+  assert.equal(details.open, false);
+  assert.equal(details.childNodes[1], local);
+  assert.equal(output.querySelector(".ai-lite-fallback-note"), null);
+  assert.equal(output.dataset.raw, `${text}\n\n---\n\n${localRaw}`);
+  assert.equal(heading.textContent, "Hiep TuVi — luận giải AI");
+  assert.equal(nodes.chatGptPaste.hidden, true);
+});
+
+test("empty replies leave the report intact and clipboard permissions allow manual paste", async () => {
+  const { window, nodes, output, alerts, toasts } = router({ configured: false });
+  nodes.pasteChatGptButton.click();
+  nodes.chatGptReply.value = " \n ";
+  nodes.applyChatGptButton.click();
+  assert.deepEqual(alerts, ["Chưa dán luận giải từ ChatGPT."]);
+  assert.equal(output.dataset.raw, localRaw);
+  assert.equal(nodes.chatGptPaste.hidden, false);
+
+  window.navigator.clipboard.readText = async () => { throw new Error("denied"); };
+  await nodes.readChatGptClipboardButton.click();
+  assert.match(toasts.at(-1), /Ctrl\+V/);
+  window.navigator.clipboard.readText = async () => "Luận giải từ clipboard";
+  await nodes.readChatGptClipboardButton.click();
+  assert.equal(nodes.chatGptReply.value, "Luận giải từ clipboard");
+  nodes.cancelChatGptButton.click();
+  assert.equal(nodes.chatGptReply.value, "");
+  assert.equal(nodes.chatGptPaste.hidden, true);
+});
+
+test("saved replies restore only for the same chart when cloud is unavailable and can be deleted", async () => {
+  const first = router({ configured: false });
+  first.nodes.pasteChatGptButton.click();
+  first.nodes.chatGptReply.value = "Bản đã lưu";
+  first.nodes.applyChatGptButton.click();
+  assert.equal(first.storage.get("tuvi-chatgpt-reply:1"), "Bản đã lưu");
+
+  const options = { configured: false, storage: first.storage };
+  const other = router(options);
+  other.window.__HIEP_TUVI_CHART__ = { chart_id: "2" };
+  await other.window.runGeminiAnalysis({ automatic: true });
+  assert.equal(other.output.dataset.raw, localRaw);
+  assert.equal(other.nodes.clearChatGptButton.hidden, true);
+
+  const cloud = router({ storage: first.storage });
+  assert.equal((await cloud.window.runGeminiAnalysis({ automatic: true })).backend, "cloud");
+
+  const same = router(options);
+  assert.equal((await same.window.runGeminiAnalysis({ automatic: true })).backend, "chatgpt-paste");
+  assert.equal(same.output.dataset.raw, `Bản đã lưu\n\n---\n\n${localRaw}`);
+  assert.equal(same.nodes.clearChatGptButton.hidden, false);
+  same.nodes.clearChatGptButton.click();
+  assert.equal(same.output.dataset.raw, localRaw);
+  assert.equal(same.heading.textContent, localTitle);
+  assert.equal(same.nodes.clearChatGptButton.hidden, true);
+  assert.equal(first.storage.has("tuvi-chatgpt-reply:1"), false);
+});
+
+test("only the 20 most recently saved chart replies are kept", () => {
+  const { window, nodes, storage } = router({ configured: false });
+  for (const id of [1, 2, 1, ...Array.from({ length: 19 }, (_, i) => i + 3)]) {
+    window.__HIEP_TUVI_CHART__ = { chart_id: id };
+    nodes.pasteChatGptButton.click();
+    nodes.chatGptReply.value = `Luận giải ${id}`;
+    nodes.applyChatGptButton.click();
+  }
+  assert.equal([...storage.keys()].filter(key => key.startsWith("tuvi-chatgpt-reply:")).length, 20);
+  assert.equal(storage.get("tuvi-chatgpt-reply:1"), "Luận giải 1");
+  assert.equal(storage.has("tuvi-chatgpt-reply:2"), false);
+  assert.equal(storage.get("tuvi-chatgpt-reply:21"), "Luận giải 21");
+});
+
+test("a cloud request already in flight cannot replace a reply applied by the user", async () => {
+  const { window, nodes, output } = router();
+  let rejectCloud;
+  window.HiepCloudAI.analyze = () => new Promise((_, reject) => { rejectCloud = reject; });
+  const cloud = window.runGeminiAnalysis({ automatic: true });
+  nodes.pasteChatGptButton.click();
+  nodes.chatGptReply.value = "Bản ChatGPT";
+  nodes.applyChatGptButton.click();
+  rejectCloud(new Error("HTTP 503"));
+  assert.equal((await cloud).reason, "chatgpt-replaced");
+  assert.equal(output.querySelector(".ai-lite-fallback-note"), null);
+  assert.equal(output.dataset.raw, `Bản ChatGPT\n\n---\n\n${localRaw}`);
 });

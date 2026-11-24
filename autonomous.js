@@ -378,7 +378,7 @@
     return value;
   };
 
-  window.copyText = async function copyTextWithFallback(value) {
+  window.copyText = async function copyTextWithFallback(value, message = "Đã sao chép") {
     const text = String(value || "");
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
@@ -390,11 +390,14 @@
       area.style.position = "fixed";
       area.style.opacity = "0";
       document.body.appendChild(area);
-      area.select();
-      if (!document.execCommand("copy")) throw new Error("Không thể sao chép tự động.");
-      area.remove();
+      try {
+        area.select();
+        if (!document.execCommand("copy")) throw new Error("Không thể sao chép tự động.");
+      } finally {
+        area.remove();
+      }
     }
-    if (typeof window.toast === "function") window.toast("Đã sao chép");
+    if (typeof window.toast === "function") window.toast(message);
   };
 
   window.toast = function resilientToast(message) {

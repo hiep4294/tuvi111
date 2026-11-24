@@ -63,6 +63,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .ai-lite-body > :first-child { margin-top: 0; }
 .ai-lite-body > :last-child { margin-bottom: 0; }
 
+.chatgpt-paste { margin: 0 0 14px; }
+.chatgpt-paste label { display: block; margin-bottom: 6px; font-weight: 700; }
+.chatgpt-paste textarea { box-sizing: border-box; width: 100%; resize: vertical; }
+.chatgpt-paste-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
 .local-report-source {
   margin-top: 16px;
   border-top: 1px solid #e2d5c4;

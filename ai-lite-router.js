@@ -1,9 +1,14 @@
 "use strict";
 
 (function installHiepAiLiteRouter(root) {
-  const VERSION = "1.3.0";
+  const VERSION = "1.5.0";
   const GPU_LITE_MODEL = "Qwen3-1.7B-q4f16_1-MLC";
-  let busyChart = null;
+  const CHATGPT_LABEL = "ChatGPT (trò chuyện)";
+  const CHATGPT_REPLY_PREFIX = "tuvi-chatgpt-reply:";
+  const CHATGPT_RECENT_KEY = "tuvi-chatgpt-recent";
+  const CHATGPT_REPLY_LIMIT = 20;
+  let busyRun = null;
+  let chatGptDraftChart = null;
   let nativePreparePromise = null;
   let translatorPreparePromise = null;
   let nativeState = "idle";
@@ -89,11 +94,11 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
 --- KẾT THÚC BÁO CÁO CỤC BỘ ---`;
   }
 
-  function setBusy(chart) {
-    busyChart = chart;
+  function setBusy(run) {
+    busyRun = run;
     document.querySelectorAll?.("#runGeminiButton, #runGeminiInlineButton").forEach((node) => {
-      node.disabled = Boolean(chart);
-      node.textContent = chart ? "AI đang tổng hợp..." : "AI tổng hợp lại";
+      node.disabled = Boolean(run);
+      node.textContent = run ? "AI đang tổng hợp..." : "AI tổng hợp lại";
     });
   }
 
@@ -170,31 +175,24 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
     }
   }
 
-  async function runCloudInterpretation(chart) {
+  function localReportFor(chart) {
     const output = outputNode();
     if (!output) throw new Error("Không tìm thấy vùng hiển thị báo cáo.");
     if (!output.querySelector(".full-offline-reading")) root.renderOfflineSummary?.(chart);
     if (!output.querySelector(".full-offline-reading")) throw new Error("Báo cáo cục bộ chưa sẵn sàng.");
+    return output;
+  }
+
+  function renderAiInterpretation(chart, text, label, model = "") {
+    const output = localReportFor(chart);
     const localRaw = rememberLocalRaw(output);
-    const message = "Đang luận giải bằng AI Cloud...";
-    renderLoading(message);
-    setStatus(message);
-
-    const result = await root.HiepCloudAI.analyze(buildCloudInterpretationPrompt(localRaw, chart), {
-      maxTokens: 8000, timeoutMs: 240000,
-    });
-    if (chart !== root.__HIEP_TUVI_CHART__) return { skipped: true, reason: "chart-changed" };
-
-    const label = { anthropic: "Claude", openai: "ChatGPT", gemini: "Gemini" }[result.provider] || "AI Cloud";
-    const model = result.model || "";
     const providerLabel = model ? `${label} · ${model}` : label;
     const meta = document.createElement("div");
     meta.className = "ai-meta";
     meta.textContent = `LUẬN GIẢI AI · ${providerLabel}`;
     const body = document.createElement("div");
     body.className = "ai-lite-body";
-    if (typeof root.renderMarkdownSafe === "function") body.innerHTML = root.renderMarkdownSafe(result.text);
-    else body.textContent = result.text;
+    body.innerHTML = root.renderMarkdownSafe(text);
 
     removeTransient();
     let source = output.querySelector(".local-report-source");
@@ -207,12 +205,145 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
     }
     source.open = false;
     output.replaceChildren(meta, body, source);
-    output.dataset.raw = `${result.text}\n\n---\n\n${localRaw}`;
+    output.dataset.raw = `${text}\n\n---\n\n${localRaw}`;
     const heading = document.getElementById("geminiResultPanel")?.querySelector("h2");
     if (heading) heading.textContent = "Hiep TuVi — luận giải AI";
     setStatus(`Đã luận giải · ${providerLabel}`, "ready");
+  }
+
+  async function runCloudInterpretation(chart, run) {
+    const localRaw = rememberLocalRaw(localReportFor(chart));
+    const config = root.HiepCloudAI.settings();
+    const worker = config.mode === "worker";
+    const message = worker && config.token ? "ChatGPT đang luận giải trên máy nhà (có thể mất 1–5 phút)..." : "Đang luận giải bằng AI Cloud...";
+    renderLoading(message);
+    setStatus(message);
+
+    const result = await root.HiepCloudAI.analyze(buildCloudInterpretationPrompt(localRaw, chart), {
+      maxTokens: 8000, timeoutMs: worker ? 600000 : 240000,
+    });
+    if (chart !== root.__HIEP_TUVI_CHART__) return { skipped: true, reason: "chart-changed" };
+    if (busyRun !== run) return { skipped: true, reason: "chatgpt-replaced" };
+
+    const label = { "chatgpt-desktop": CHATGPT_LABEL, anthropic: "Claude", openai: "ChatGPT", gemini: "Gemini" }[result.provider] || "AI Cloud";
+    const model = result.model || "";
+    renderAiInterpretation(chart, result.text, label, result.provider === "chatgpt-desktop" ? "" : model);
     return { ok: true, backend: "cloud", model };
   }
+
+  function savedChatGptReply(chart) {
+    if (chart.chart_id == null) return "";
+    try { return root.localStorage.getItem(CHATGPT_REPLY_PREFIX + chart.chart_id) || ""; }
+    catch (_) { return ""; }
+  }
+
+  function storeChatGptReply(chart, text) {
+    if (chart.chart_id == null) return false;
+    try {
+      const storage = root.localStorage;
+      const id = String(chart.chart_id);
+      const key = CHATGPT_REPLY_PREFIX + id;
+      const recent = JSON.parse(storage.getItem(CHATGPT_RECENT_KEY) || "[]").filter((entry) => entry !== id);
+      if (text) {
+        recent.unshift(id);
+        for (const entry of recent.splice(CHATGPT_REPLY_LIMIT)) storage.removeItem(CHATGPT_REPLY_PREFIX + entry);
+        storage.setItem(key, text);
+      } else {
+        storage.removeItem(key);
+      }
+      storage.setItem(CHATGPT_RECENT_KEY, JSON.stringify(recent));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function showClearChatGptButton(show) {
+    const button = document.getElementById("clearChatGptButton");
+    if (button) button.hidden = !show;
+  }
+
+  function setChatGptPasteChart(chart = null) {
+    const panel = document.getElementById("chatGptPaste");
+    const reply = document.getElementById("chatGptReply");
+    if (!panel || !reply) return;
+    if (chatGptDraftChart !== chart || !chart) reply.value = "";
+    chatGptDraftChart = chart;
+    panel.hidden = !chart;
+    document.getElementById("pasteChatGptButton")?.setAttribute("aria-expanded", String(Boolean(chart)));
+    if (chart) reply.focus();
+  }
+
+  function openChatGptPaste() {
+    const chart = root.__HIEP_TUVI_CHART__;
+    if (!chart) alert("Chưa lập lá số.");
+    else setChatGptPasteChart(chart);
+    return chart;
+  }
+
+  async function sendChatGptReport() {
+    const chart = openChatGptPaste();
+    if (!chart) return;
+    try {
+      const localRaw = rememberLocalRaw(localReportFor(chart));
+      const copied = root.copyText(buildCloudInterpretationPrompt(localRaw, chart),
+        "Đã sao chép báo cáo. Dán vào ChatGPT (Ctrl+V), gửi, rồi sao chép câu trả lời về đây.");
+      // Mở tab trong thao tác bấm nút để giữ quyền mở cửa sổ.
+      root.open("https://chatgpt.com/", "_blank", "noopener");
+      await copied;
+    } catch (error) {
+      root.toast?.(error.message);
+    }
+  }
+
+  async function pasteChatGptClipboard() {
+    const chart = chatGptDraftChart;
+    const reply = document.getElementById("chatGptReply");
+    try {
+      const text = await root.navigator.clipboard.readText();
+      if (chart === chatGptDraftChart && chart === root.__HIEP_TUVI_CHART__) reply.value = text;
+    } catch (_) {
+      root.toast?.("Không đọc được clipboard. Hãy dán bằng Ctrl+V.");
+    }
+    if (chart === chatGptDraftChart && chart === root.__HIEP_TUVI_CHART__) reply.focus();
+  }
+
+  function applyChatGptReply() {
+    const chart = chatGptDraftChart;
+    if (!chart || chart !== root.__HIEP_TUVI_CHART__) return;
+    const text = document.getElementById("chatGptReply").value.trim();
+    if (!text) {
+      alert("Chưa dán luận giải từ ChatGPT.");
+      return;
+    }
+    try {
+      renderAiInterpretation(chart, text, CHATGPT_LABEL);
+    } catch (error) {
+      root.toast?.(error.message);
+      return;
+    }
+    if (busyRun?.chart === chart) setBusy(null);
+    if (!storeChatGptReply(chart, text)) root.toast?.("Không thể lưu luận giải trên thiết bị.");
+    showClearChatGptButton(true);
+    setChatGptPasteChart();
+  }
+
+  function clearChatGptReply() {
+    const chart = root.__HIEP_TUVI_CHART__;
+    if (!chart) return;
+    if (busyRun?.chart === chart) setBusy(null);
+    if (savedChatGptReply(chart) && !storeChatGptReply(chart, "")) root.toast?.("Không thể xóa luận giải đã lưu.");
+    restoreLocalReport(chart);
+    showClearChatGptButton(Boolean(savedChatGptReply(chart)));
+    setStatus("Đang hiển thị báo cáo cục bộ", "ready");
+  }
+
+  document.getElementById("sendChatGptButton")?.addEventListener("click", sendChatGptReport);
+  document.getElementById("pasteChatGptButton")?.addEventListener("click", openChatGptPaste);
+  document.getElementById("readChatGptClipboardButton")?.addEventListener("click", pasteChatGptClipboard);
+  document.getElementById("applyChatGptButton")?.addEventListener("click", applyChatGptReply);
+  document.getElementById("cancelChatGptButton")?.addEventListener("click", () => setChatGptPasteChart());
+  document.getElementById("clearChatGptButton")?.addEventListener("click", clearChatGptReply);
 
   function renderNoAi(diagnostics) {
     const output = outputNode();
@@ -265,7 +396,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
             nativeRetryChart = null;
             if (!retryChart) return value;
             setTimeout(() => {
-              if (retryChart === root.__HIEP_TUVI_CHART__ && !busyChart) {
+              if (retryChart === root.__HIEP_TUVI_CHART__ && !busyRun) {
                 root.runGeminiAnalysis?.({ automatic: false, preferNative: true });
               }
             }, 50);
@@ -357,12 +488,21 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
       if (!automatic) alert("Chưa lập lá số.");
       return { skipped: true, reason: "no-chart" };
     }
-    if (busyChart === chart) return { skipped: true, reason: "ai-lite-busy" };
-
     const useCloud = (automatic || !options.preferNative) && root.HiepCloudAI?.isAvailable();
-    // Sau khi lập lá số, chỉ gọi cloud; các model cục bộ vẫn chạy theo yêu cầu.
+    const savedReply = savedChatGptReply(chart);
+    if (automatic) {
+      if (chatGptDraftChart && chatGptDraftChart !== chart) setChatGptPasteChart();
+      showClearChatGptButton(Boolean(savedReply));
+    }
+    if (busyRun?.chart === chart) return { skipped: true, reason: "ai-lite-busy" };
+
+    // Sau khi lập lá số, ưu tiên cloud rồi đến bản đã dán; model cục bộ chạy theo yêu cầu.
     if (automatic && !useCloud) {
-      if (busyChart) setBusy(null);
+      if (busyRun) setBusy(null);
+      if (savedReply && outputNode()?.querySelector(".full-offline-reading")) {
+        renderAiInterpretation(chart, savedReply, CHATGPT_LABEL);
+        return { ok: true, backend: "chatgpt-paste" };
+      }
       const offline = root.navigator?.onLine === false;
       const note = `${offline ? "Offline" : "Chưa cấu hình AI Cloud"} · đang hiển thị báo cáo cục bộ`;
       restoreLocalReport(chart, note);
@@ -370,23 +510,29 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
       return { skipped: true, reason: offline ? "offline" : "cloud-not-configured" };
     }
 
-    const chartChanged = () => chart !== root.__HIEP_TUVI_CHART__;
-    const stale = { skipped: true, reason: "chart-changed" };
+    const run = { chart };
+    const isStale = () => busyRun !== run || chart !== root.__HIEP_TUVI_CHART__;
+    const stale = () => ({
+      skipped: true,
+      reason: chart !== root.__HIEP_TUVI_CHART__ ? "chart-changed" : "chatgpt-replaced",
+    });
     const progress = (report) => {
-      if (!chartChanged()) onProgress(report);
+      if (!isStale()) onProgress(report);
     };
-    setBusy(chart);
+    setBusy(run);
     if (!options.preferNative) latestDiagnostics = [];
     try {
       if (useCloud) {
         try {
-          return await runCloudInterpretation(chart);
+          return await runCloudInterpretation(chart, run);
         } catch (error) {
-          if (chartChanged()) return stale;
+          if (isStale()) return stale();
           latestDiagnostics.push({ backend: "cloud", error: String(error?.message || error) });
-          restoreLocalReport(chart, cloudErrorNote);
-          setStatus(cloudErrorNote, "ready");
-          if (automatic) return { ok: false, backend: "local-rules", diagnostics: latestDiagnostics };
+          const offline = error?.code === "BRIDGE_OFFLINE";
+          const note = offline ? "Máy ChatGPT đang tắt · hiển thị báo cáo cục bộ" : cloudErrorNote;
+          restoreLocalReport(chart, note);
+          setStatus(note, "ready");
+          if (automatic || offline) return { ok: false, backend: "local-rules", diagnostics: latestDiagnostics };
         }
       } else {
         restoreLocalReport(chart);
@@ -397,7 +543,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
         loadScript("HiepTuViAI", "hiep-tuvi-ai.js?v=2.0.0"),
         loadScript("HiepTuViKnowledge", "hiep-tuvi-knowledge.js?v=2.0.1"),
       ]);
-      if (chartChanged()) return stale;
+      if (isStale()) return stale();
       if (!ai?.buildBrowserSummaryPrompt || !ai?.buildCompactEvidenceText) throw new Error("Hiep TuVi synthesis layer chưa sẵn sàng.");
       const prompt = buildSynthesisPrompt(chart, ai, knowledge, false);
       const cpuPrompt = buildSynthesisPrompt(chart, ai, knowledge, true);
@@ -408,7 +554,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
             prewarmFromGesture(progress);
             await nativePreparePromise;
           }
-          if (chartChanged()) return;
+          if (isStale()) return;
           return tryNative(chart, prompt, progress);
         }],
         ["webgpu-lite", () => tryWebGpu(prompt, progress)],
@@ -418,7 +564,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
       for (const [name, execute] of backends) {
         try {
           const result = await execute();
-          if (chartChanged()) return stale;
+          if (isStale()) return stale();
           if (!result?.text) throw new Error(`${name} không trả về nội dung.`);
           const backend = result.backend || name;
           renderSuccess(result.text, backend, result.model || "");
@@ -426,7 +572,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
           root.toast?.("AI đã tổng hợp bổ sung; báo cáo 12 cung gốc vẫn được giữ nguyên.");
           return { ok: true, backend, model: result.model || "" };
         } catch (error) {
-          if (chartChanged()) return stale;
+          if (isStale()) return stale();
           if (error?.code === "NATIVE_DOWNLOADING") {
             renderLoading("Chrome Built-in AI đang tải; Local Rules vẫn sẵn sàng. Khi tải xong hãy bấm AI tổng hợp lại.");
             setStatus("Chrome Built-in AI đang tải · chưa chạy model khác", "busy");
@@ -440,13 +586,13 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
       setStatus("AI tăng cường không khả dụng · Local Rules đầy đủ đang hoạt động", "ready");
       return { ok: false, backend: "local-rules", diagnostics: latestDiagnostics };
     } catch (error) {
-      if (chartChanged()) return stale;
+      if (isStale()) return stale();
       latestDiagnostics.push({ backend: "router", error: String(error?.message || error) });
       renderNoAi(latestDiagnostics);
       setStatus("Local Rules đầy đủ đang hoạt động", "ready");
       return { ok: false, backend: "local-rules", error: String(error?.message || error) };
     } finally {
-      if (busyChart === chart) setBusy(null);
+      if (busyRun === run) setBusy(null);
     }
   }
 
