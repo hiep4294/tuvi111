@@ -5,17 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b2f24">
   <meta name="description" content="Lập lá số Tử Vi, Bát Tự, Local Rules đầy đủ và Hiep TuVi 0.6B chuyên ngành chạy cục bộ theo yêu cầu.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <title>Tử Vi + Bát Tự — Web v1.25 Hiep TuVi 0.6B</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co https://*.workers.dev https://api.anthropic.com https://api.openai.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Tử Vi + Bát Tự — Web v1.26 Hiep TuVi 0.6B</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css?v=1.25">
-  <link rel="stylesheet" href="styles-autonomous.css?v=1.25">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.26">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">WEB v1.25 · TUVI111 FACT/CALC · LOCAL RULES FULL · HIEP-TUVI 0.6B</div>
+      <div class="eyebrow">WEB v1.26 · TUVI111 FACT/CALC · LOCAL RULES FULL · HIEP-TUVI 0.6B</div>
       <h1>Tử Vi + Bát Tự</h1>
       <p>Tuvi111 khóa FACT/CALC và tạo đủ 12 cung bằng Local Rules. Hiep TuVi 0.6B được tích hợp ngay trong phần mềm để luận sâu từng cung; model chỉ tải khi bạn chủ động bấm chạy.</p>
     </div>
@@ -121,17 +121,17 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">LOCAL RULES FULL · AI LITE TỔNG HỢP</span>
-                  <h2>Hiep TuVi — 12 cung đầy đủ + AI tổng hợp Lite</h2>
+                  <span class="section-kicker">LOCAL RULES · AI THEO YÊU CẦU</span>
+                  <h2>Hiep TuVi — 12 cung đầy đủ và AI tổng hợp bổ sung</h2>
                 </div>
-                <span class="tag">v1.25 · LOCAL + AI</span>
+                <span class="tag">v1.26 · LOCAL + AI</span>
               </div>
               <div class="inline-gemini-actions">
                 <button id="runGeminiInlineButton" class="primary-button" type="button">AI tổng hợp lại</button>
-                <span class="muted">12 cung được tạo trước bằng Local Rules. AI Lite chỉ thêm một phần tổng hợp ngắn.</span>
+                <span class="muted">12 cung được tạo trước bằng Local Rules. Bấm để tổng hợp bổ sung bằng AI.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
-                <p class="muted">Lập lá số xong sẽ có ngay đủ 12 cung; AI Lite chỉ bổ sung tổng hợp khi thiết bị có backend phù hợp.</p>
+                <p class="muted">Lập lá số để xem báo cáo Local Rules đủ 12 cung.</p>
               </div>
             </section>
 
@@ -224,24 +224,39 @@
         <section class="card gemini-panel">
           <div class="gemini-heading">
             <div>
-              <span class="section-kicker">AI LITE · KHÔNG FULL-REPORT GENERATION</span>
-              <h2>Hiep TuVi AI Lite — tổng hợp bổ sung</h2>
+              <span class="section-kicker">AI TỔNG HỢP BỔ SUNG</span>
+              <h2>AI Cloud khi online · AI cục bộ khi offline</h2>
             </div>
-            <span id="geminiStatus" class="tag">AI Lite chưa kiểm tra</span>
+            <span id="geminiStatus" class="tag">Chưa kiểm tra kết nối</span>
           </div>
 
           <div class="gemini-settings">
-            <label hidden>Địa chỉ fallback cloud
-              <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://worker.example">
+            <label>Kết nối AI Cloud
+              <select id="cloudMode">
+                <option value="worker">Worker</option>
+                <option value="direct">Khóa riêng trên máy này</option>
+              </select>
+            </label>
+            <label>URL Worker HTTPS
+              <input id="geminiEndpoint" type="url" inputmode="url" value="" placeholder="https://tuvi.example.workers.dev">
+            </label>
+            <label hidden>Nhà cung cấp
+              <select id="cloudProvider">
+                <option value="anthropic">Claude (Anthropic)</option>
+                <option value="openai">ChatGPT (OpenAI)</option>
+              </select>
+            </label>
+            <label hidden>Khóa API
+              <input id="cloudKey" type="password" autocomplete="off" spellcheck="false">
+              <span class="muted">Khóa chỉ lưu trong trình duyệt này. Không dùng trên máy chung.</span>
             </label>
             <label hidden>Model WebGPU Lite
               <select id="geminiModel" aria-label="Mô hình AI WebGPU Lite">
                 <option value="Qwen3-1.7B-q4f16_1-MLC" selected>Qwen3 1.7B — chỉ tổng hợp một lượt</option>
               </select>
             </label>
-            <span class="muted">AI 0.6B chuyên ngành nằm ngay dưới báo cáo ở tab Tử Vi + Bát Tự. AI Lite này chỉ giữ vai trò tổng hợp bổ sung.</span>
-            <button id="saveGeminiSettingsButton" type="button" hidden>Lưu fallback</button>
-            <button id="testGeminiButton" type="button">Kiểm tra AI cục bộ</button>
+            <button id="saveGeminiSettingsButton" type="button">Lưu</button>
+            <button id="testGeminiButton" type="button">Kiểm tra kết nối</button>
           </div>
 
           <div class="gemini-actions">
@@ -252,7 +267,7 @@
           </div>
 
           <div class="ai-result-location-note">
-            FACT/CALC và Local Rules là nền cố định. Hiep TuVi 0.6B chỉ được gọi theo yêu cầu từng cung để giảm RAM và tránh lỗi lan sang toàn báo cáo.
+            Bấm Lưu để áp dụng cấu hình. Khi bạn bấm “AI tổng hợp lại”, prompt lá số sẽ được gửi đến dịch vụ đã chọn nếu có kết nối. Khi cloud không khả dụng, web dùng AI cục bộ hoặc Local Rules.
           </div>
         </section>
       </section>
@@ -269,7 +284,7 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.25 · Tuvi111 deterministic · Local Rules Full · Hiep TuVi 0.6B on-demand.</p>
+    <p>Web v1.26 · Tuvi111 deterministic · Local Rules Full · Hiep TuVi 0.6B on-demand.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -282,13 +297,14 @@
   <script src="knowledge/bazi.js?v=2.0.0" defer></script>
   <script src="knowledge/schools.js?v=2.0.0" defer></script>
   <script src="hiep-tuvi-knowledge.js?v=2.0.1" defer></script>
-  <script src="app.js?v=1.25" defer></script>
-  <script src="autonomous.js?v=1.25" defer></script>
+  <script src="app.js?v=1.26" defer></script>
+  <script src="autonomous.js?v=1.26" defer></script>
   <script src="webgpu-failure-guard.js?v=1.25" defer></script>
   <script src="offline-summary.js?v=2.2.0" defer></script>
   <script src="browser-native-ai.js?v=1.0.1" defer></script>
   <script src="browser-cpu-ai.js?v=1.1.0" defer></script>
-  <script src="ai-lite-router.js?v=1.0.0" defer></script>
+  <script src="cloud-ai.js?v=1.0.0" defer></script>
+  <script src="ai-lite-router.js?v=1.2.0" defer></script>
   <script src="hiep-tuvi-06b.js?v=0.1.0" defer></script>
   <script src="hiep-tuvi-06b-domain.js?v=0.1.1" defer></script>
 </body>

@@ -1,6 +1,7 @@
 :root { --radius: 8px; }
 
 .inline-gemini-actions[hidden], .gemini-panel[hidden] { display: none !important; }
+.gemini-settings [hidden] { display: none !important; }
 html, body { max-width: 100%; overflow-x: hidden; }
 .tuvi-board { max-width: 100%; overscroll-behavior-inline: contain; }
 

@@ -1,7 +1,7 @@
 "use strict";
 
 (function installHiepAiLiteRouter(root) {
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const GPU_LITE_MODEL = "Qwen3-1.7B-q4f16_1-MLC";
   let busy = false;
   let nativePreparePromise = null;
@@ -14,7 +14,8 @@
   const loadPromises = new Map();
 
   function setStatus(message, mode = "busy") {
-    root.setGeminiStatus?.(message, mode);
+    const prefix = root.navigator?.onLine === false ? "Offline · dùng AI cục bộ/Local Rules · " : "";
+    root.setGeminiStatus?.(prefix + message, mode);
   }
 
   function withTimeout(promise, ms, message) {
@@ -84,7 +85,7 @@
     busy = value;
     document.querySelectorAll?.("#runGeminiButton, #runGeminiInlineButton").forEach((node) => {
       node.disabled = value;
-      node.textContent = value ? "AI Lite đang tổng hợp..." : "AI tổng hợp lại";
+      node.textContent = value ? "AI đang tổng hợp..." : "AI tổng hợp lại";
     });
   }
 
@@ -140,7 +141,7 @@
   function renderNoAi(diagnostics) {
     const output = outputNode();
     if (!output) return;
-    rememberLocalRaw(output);
+    output.dataset.raw = rememberLocalRaw(output);
     removeTransient();
     const note = document.createElement("div");
     note.className = "ai-lite-fallback-note";
@@ -283,11 +284,12 @@
       return { skipped: true, reason: "manual-ai-only" };
     }
 
-    prewarmFromGesture();
+    const useCloud = !options.preferNative && root.HiepCloudAI?.isAvailable();
+    if (!useCloud) prewarmFromGesture();
 
     const chartId = String(chart.chart_id || "chart");
     setBusy(true);
-    latestDiagnostics = [];
+    if (!options.preferNative) latestDiagnostics = [];
     try {
       const [ai, knowledge] = await Promise.all([
         loadScript("HiepTuViAI", "hiep-tuvi-ai.js?v=2.0.0"),
@@ -298,20 +300,38 @@
       const cpuPrompt = buildSynthesisPrompt(chart, ai, knowledge, true);
 
       const backends = [
-        ["chrome-built-in", () => tryNative(chart, prompt)],
+        ["chrome-built-in", async () => {
+          if (useCloud && !root.HiepNativeAI?.prepared?.()) {
+            prewarmFromGesture();
+            await nativePreparePromise;
+          }
+          return tryNative(chart, prompt);
+        }],
         ["webgpu-lite", () => tryWebGpu(prompt)],
         ["cpu-wasm-lite", () => tryCpu(chart, cpuPrompt)],
       ];
 
+      if (useCloud) {
+        backends.unshift(["cloud", () => {
+          renderLoading("Đang tổng hợp bằng AI Cloud...");
+          setStatus("Đang tổng hợp bằng AI Cloud...", "busy");
+          return root.HiepCloudAI.analyze(prompt, { maxTokens: 1800 });
+        }]);
+      }
+
       for (const [name, execute] of backends) {
+        if (chart !== root.__HIEP_TUVI_CHART__) return { skipped: true, reason: "chart-changed" };
         try {
           const result = await execute();
           if (!result?.text) throw new Error(`${name} không trả về nội dung.`);
-          renderSuccess(result.text, result.backend || name, result.model || "");
+          if (chart !== root.__HIEP_TUVI_CHART__) return { skipped: true, reason: "chart-changed" };
+          const backend = result.backend || name;
+          const label = name === "cloud" ? ({ anthropic: "Claude", openai: "ChatGPT", gemini: "Gemini" }[result.provider] || "AI Cloud") : backend;
+          renderSuccess(result.text, label, result.model || "");
           enhancedChartId = chartId;
-          setStatus(`Hiep TuVi AI Lite hoàn thành · ${result.backend || name}`, "ready");
+          setStatus(`Đã tổng hợp · ${label}${result.model ? ` · ${result.model}` : ""}`, "ready");
           root.toast?.("AI đã tổng hợp bổ sung; báo cáo 12 cung gốc vẫn được giữ nguyên.");
-          return { ok: true, backend: result.backend || name, model: result.model || "" };
+          return { ok: true, backend, model: result.model || "" };
         } catch (error) {
           if (error?.code === "NATIVE_DOWNLOADING") {
             renderLoading("Chrome Built-in AI đang tải; Local Rules vẫn sẵn sàng. Khi tải xong hãy bấm AI tổng hợp lại.");
@@ -338,6 +358,22 @@
   root.runGeminiAnalysis = runLite;
 
   root.testGeminiConnection = async function testAiLite() {
+    if (root.HiepCloudAI?.isAvailable()) {
+      const button = document.getElementById("testGeminiButton");
+      if (button) button.disabled = true;
+      setStatus("Đang kiểm tra AI Cloud...", "busy");
+      try {
+        const label = await root.HiepCloudAI.test();
+        latestDiagnostics = [];
+        setStatus(`Kết nối AI Cloud thành công · ${label}`, "ready");
+      } catch (error) {
+        latestDiagnostics = [{ backend: "cloud", error: String(error.message || error) }];
+        setStatus(`Kết nối AI Cloud lỗi · ${error.message || error}`, "error");
+      } finally {
+        if (button) button.disabled = false;
+      }
+      return;
+    }
     setStatus("Đang kiểm tra AI cục bộ theo yêu cầu...", "busy");
     const diagnostics = [];
     try {
@@ -361,10 +397,6 @@
     }
   };
 
-  root.restoreGeminiSettings = function restoreAiLiteSettings() {
-    setStatus("Local Rules sẵn sàng · AI chỉ chạy khi bấm", "ready");
-  };
-
   root.HiepAiLiteRouter = Object.freeze({
     VERSION,
     GPU_LITE_MODEL,
@@ -374,22 +406,5 @@
     get diagnostics() { return [...latestDiagnostics]; },
     get nativeState() { return nativeState; },
     get translatorState() { return translatorState; },
-  });
-
-  root.addEventListener("DOMContentLoaded", () => {
-    const resultPanel = document.getElementById("geminiResultPanel");
-    const heading = resultPanel?.querySelector?.("h2");
-    const kicker = resultPanel?.querySelector?.(".section-kicker");
-    const tag = resultPanel?.querySelector?.(".tag");
-    if (heading) heading.textContent = "Hiep TuVi — 12 cung đầy đủ + AI tổng hợp Lite";
-    if (kicker) kicker.textContent = "LOCAL RULES FULL · AI CHỈ CHẠY KHI BẤM";
-    if (tag) tag.textContent = "v1.25 · MANUAL AI";
-    document.querySelectorAll?.("#runGeminiButton, #runGeminiInlineButton").forEach((node) => { node.textContent = "AI tổng hợp lại"; });
-    const note = document.querySelector?.(".inline-gemini-actions .muted");
-    if (note) note.textContent = "Local Rules tạo đủ 12 cung trước. Không model AI nào tự tải sau khi lập lá số.";
-    const panelTitle = document.querySelector?.(".gemini-panel h2");
-    if (panelTitle) panelTitle.textContent = "Hiep TuVi AI Lite — tổng hợp bổ sung theo yêu cầu";
-    const resultNote = document.querySelector?.(".ai-result-location-note");
-    if (resultNote) resultNote.textContent = "Hiep TuVi 0.6B chuyên ngành nằm ngay dưới báo cáo. AI Lite tổng hợp cũ vẫn giữ để thử thủ công, không chạy tự động.";
   });
 })(window);

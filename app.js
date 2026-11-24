@@ -20,7 +20,6 @@ const normalizeName = (s) => String(s || "").toLocaleLowerCase("vi");
 
 const GEMINI_ENDPOINT_KEY = "tuvi-gemini-worker-endpoint";
 const GEMINI_MODEL_KEY = "tuvi-gemini-model";
-const DEFAULT_GEMINI_ENDPOINT = "";
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const WEB_VERSION = "1.18";
 
@@ -58,31 +57,42 @@ function setGeminiStatus(message, mode = "") {
   node.className = `tag gemini-status ${mode}`.trim();
 }
 
+function showCloudFields() {
+  const direct = $("cloudMode").value === "direct";
+  $("geminiEndpoint").closest("label").hidden = direct;
+  $("cloudProvider").closest("label").hidden = !direct;
+  $("cloudKey").closest("label").hidden = !direct;
+}
+
+function showCloudStatus() {
+  const status = window.HiepCloudAI?.isAvailable() ? "Đã cấu hình AI Cloud" : "Local Rules sẵn sàng · AI chỉ chạy khi bấm";
+  setGeminiStatus(navigator.onLine === false ? "Offline · dùng AI cục bộ/Local Rules" : status, "ready");
+}
+
 function restoreGeminiSettings() {
-  const savedEndpoint = normalizeEndpoint(localStorage.getItem(GEMINI_ENDPOINT_KEY));
-  const endpoint = savedEndpoint || DEFAULT_GEMINI_ENDPOINT;
-  const model = DEFAULT_GEMINI_MODEL;
-  localStorage.setItem(GEMINI_ENDPOINT_KEY, endpoint);
-  localStorage.setItem(GEMINI_MODEL_KEY, model);
+  showCloudStatus();
+  if (!window.HiepCloudAI) return;
+  const { mode, endpoint, provider, key } = window.HiepCloudAI.settings();
+  $("cloudMode").value = mode;
   $("geminiEndpoint").value = endpoint;
-  $("geminiModel").value = model;
-  setGeminiStatus(savedEndpoint ? "Đã lưu Worker" : "Đã tích hợp Worker", "ready");
+  $("cloudProvider").value = provider;
+  $("cloudKey").value = key;
+  showCloudFields();
 }
 
 function saveGeminiSettings() {
-  const endpoint = normalizeEndpoint($("geminiEndpoint").value);
-  if (!endpoint) {
-    localStorage.removeItem(GEMINI_ENDPOINT_KEY);
-    setGeminiStatus("Chưa cấu hình", "");
-    return toast("Đã xóa địa chỉ Worker");
+  try {
+    window.HiepCloudAI.save({
+      mode: $("cloudMode").value,
+      endpoint: $("geminiEndpoint").value,
+      provider: $("cloudProvider").value,
+      key: $("cloudKey").value,
+    });
+    restoreGeminiSettings();
+    toast("Đã lưu cấu hình AI");
+  } catch (error) {
+    setGeminiStatus(error.message, "error");
   }
-  const valid = endpoint.startsWith("https://") || endpoint.startsWith("http://localhost") || endpoint.startsWith("http://127.0.0.1");
-  if (!valid) return alert("Địa chỉ Worker phải bắt đầu bằng https://");
-  localStorage.setItem(GEMINI_ENDPOINT_KEY, endpoint);
-  localStorage.setItem(GEMINI_MODEL_KEY, DEFAULT_GEMINI_MODEL);
-  $("geminiEndpoint").value = endpoint;
-  setGeminiStatus("Đã lưu Worker", "ready");
-  toast("Đã lưu kết nối Gemini");
 }
 
 function inlineMarkdownSafe(value) {
@@ -322,7 +332,7 @@ async function runGeminiAnalysis(options = {}) {
 
 function clearGeminiResult() {
   $("geminiOutput").dataset.raw = "";
-  $("geminiOutput").innerHTML = '<p class="muted">Kết quả Gemini 3.5 đã được xóa.</p>';
+  $("geminiOutput").innerHTML = '<p class="muted">Đã xóa kết quả luận giải.</p>';
 }
 
 function toast(message) {
@@ -486,6 +496,7 @@ async function generate(event) {
     state.chart = result.chart;
     validateFixedBranchFrame(state.chart);
     $("geminiOutput").dataset.raw = "";
+    delete $("geminiOutput").dataset.localRulesRaw;
     $("geminiOutput").innerHTML = '<p class="muted">Đang tạo tổng luận cục bộ...</p>';
     state.selectedBranch = Number(state.chart.heaven.menh_branch || 1);
     state.selectedTopic = 0;
@@ -789,6 +800,10 @@ function bindEvents() {
   $("buildPromptButton").addEventListener("click", buildPrompt);
   $("copyPromptButton").addEventListener("click", () => copyText($("promptText").value));
   $("downloadPromptButton").addEventListener("click", () => downloadText("prompt-tuvi-battu.txt", $("promptText").value));
+  $("cloudMode").addEventListener("change", showCloudFields);
+  $("cloudProvider").addEventListener("change", () => { $("cloudKey").value = ""; });
+  window.addEventListener("online", showCloudStatus);
+  window.addEventListener("offline", showCloudStatus);
   $("saveGeminiSettingsButton").addEventListener("click", saveGeminiSettings);
   $("testGeminiButton").addEventListener("click", testGeminiConnection);
   $("runGeminiButton").addEventListener("click", runGeminiAnalysis);
@@ -815,5 +830,5 @@ window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   initWorker();
   // AI là tùy chọn; chỉ kiểm tra kết nối khi người dùng chủ động yêu cầu.
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.18").catch(()=>{});
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("service-worker.js?v=1.26").catch(()=>{});
 });

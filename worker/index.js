@@ -1,3 +1,6 @@
+"use strict";
+
+const PROVIDERS = ["anthropic", "openai", "gemini"];
 const DEFAULT_MODEL = "gemini-3.8-flash";
 const DEFAULT_ALLOWED_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"];
 
@@ -40,57 +43,71 @@ async function readJson(request) {
   return request.json();
 }
 
-function extractText(payload) {
-  const parts = payload?.candidates?.[0]?.content?.parts || [];
-  return parts.map((part) => String(part?.text || "")).filter(Boolean).join("\n").trim();
+function providerKeys(env) {
+  return {
+    anthropic: String(env.ANTHROPIC_API_KEY || "").trim(),
+    openai: String(env.OPENAI_API_KEY || "").trim(),
+    gemini: String(env.GEMINI_API_KEY || "").trim(),
+  };
 }
 
-async function callGemini(prompt, model, maxOutputTokens, env) {
-  const apiKey = String(env.GEMINI_API_KEY || "").trim();
-  if (!apiKey) throw new Error("Worker chưa có secret GEMINI_API_KEY.");
+async function callProvider(provider, prompt, requestedModel, maxOutputTokens, env, key, timeout) {
+  let url, model, headers, body;
+  const messages = [{ role: "user", content: prompt }];
+  if (provider === "anthropic") {
+    model = env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+    url = "https://api.anthropic.com/v1/messages";
+    headers = { "x-api-key": key, "anthropic-version": "2023-06-01" };
+    body = { model, messages, max_tokens: maxOutputTokens, temperature: 0.35 };
+  } else if (provider === "openai") {
+    model = env.OPENAI_MODEL || "gpt-5-mini";
+    url = "https://api.openai.com/v1/chat/completions";
+    headers = { Authorization: `Bearer ${key}` };
+    body = { model, messages, max_completion_tokens: maxOutputTokens };
+  } else {
+    const models = allowedModels(env);
+    model = models.includes(requestedModel) ? requestedModel : String(env.DEFAULT_MODEL || DEFAULT_MODEL);
+    if (!models.includes(model)) throw Object.assign(new Error("Model Gemini không được phép."), { status: 400 });
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    headers = { "x-goog-api-key": key };
+    body = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens } };
+  }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 150000);
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.35,
-            maxOutputTokens,
-          },
-        }),
-        signal: controller.signal,
-      }
-    );
-
-    const raw = await response.text();
-    let data = {};
-    try { data = raw ? JSON.parse(raw) : {}; }
-    catch (_) { data = { raw }; }
-    if (!response.ok) {
-      const message = data?.error?.message || data?.message || raw || `Gemini HTTP ${response.status}`;
-      const error = new Error(message);
-      error.status = response.status;
-      throw error;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+      redirect: "error",
+    });
+    if (!response.ok) throw Object.assign(new Error(`${provider} HTTP ${response.status}`), { status: response.status });
+    const data = await response.json();
+    let text, input, output, total;
+    if (provider === "gemini") {
+      text = data.candidates?.[0]?.content?.parts?.map(part => part.text).filter(Boolean).join("\n");
+      input = data.usageMetadata?.promptTokenCount;
+      output = data.usageMetadata?.candidatesTokenCount;
+      total = data.usageMetadata?.totalTokenCount;
+    } else if (provider === "anthropic") {
+      text = data.content?.map(part => part.text).filter(Boolean).join("\n");
+      input = data.usage?.input_tokens;
+      output = data.usage?.output_tokens;
+    } else {
+      text = data.choices?.[0]?.message?.content;
+      input = data.usage?.prompt_tokens;
+      output = data.usage?.completion_tokens;
+      total = data.usage?.total_tokens;
     }
-
-    const text = extractText(data);
-    if (!text) throw new Error("Gemini không trả về nội dung văn bản.");
-    const usage = data.usageMetadata || {};
+    if (typeof text !== "string" || !text.trim()) throw new Error(`${provider} không trả về nội dung văn bản.`);
     return {
-      text,
+      text: text.trim(), provider, model: data.model || model,
       usage: {
-        prompt_token_count: Number(usage.promptTokenCount || 0),
-        candidates_token_count: Number(usage.candidatesTokenCount || 0),
-        total_token_count: Number(usage.totalTokenCount || 0),
+        prompt_token_count: input || 0,
+        candidates_token_count: output || 0,
+        total_token_count: total ?? ((input || 0) + (output || 0)),
       },
     };
   } finally {
@@ -112,7 +129,8 @@ export default {
       return json({
         ok: true,
         service: "Hiep TuVi AI Worker",
-        version: "1.0.1",
+        version: "1.1.0",
+        providers: Object.fromEntries(Object.entries(providerKeys(env)).map(([name, key]) => [name, Boolean(key)])),
         default_model: String(env.DEFAULT_MODEL || DEFAULT_MODEL),
         allowed_models: models,
       }, 200, origin);
@@ -128,15 +146,27 @@ export default {
       if (!prompt) return json({ error: "Prompt đang trống." }, 400, origin);
       if (prompt.length > 500000) return json({ error: "Prompt vượt giới hạn 500.000 ký tự." }, 413, origin);
 
-      const models = allowedModels(env);
-      const requestedModel = String(body?.model || env.DEFAULT_MODEL || DEFAULT_MODEL).trim();
-      const model = models.includes(requestedModel) ? requestedModel : String(env.DEFAULT_MODEL || DEFAULT_MODEL);
-      if (!models.includes(model)) return json({ error: `Model không được phép: ${requestedModel}` }, 400, origin);
+      const provider = body.provider ?? (body.model ? "gemini" : "auto");
+      if (provider !== "auto" && !PROVIDERS.includes(provider)) return json({ error: "Provider không hợp lệ." }, 400, origin);
+      const keys = providerKeys(env);
+      const candidates = (provider === "auto" ? PROVIDERS : [provider]).filter(name => keys[name]);
+      if (!candidates.length) return json({ error: "Worker chưa có khóa cho nhà cung cấp đã chọn." }, 503, origin);
 
-      const requestedTokens = Number(body?.max_output_tokens || 2800);
-      const maxOutputTokens = Math.max(256, Math.min(8192, Number.isFinite(requestedTokens) ? requestedTokens : 2800));
-      const result = await callGemini(prompt, model, maxOutputTokens, env);
-      return json({ ...result, model, metadata: body?.metadata || null }, 200, origin);
+      const requestedTokens = Number(body.max_output_tokens || 2800);
+      const maxOutputTokens = Math.max(256, Math.min(8192, Number.isFinite(requestedTokens) ? Math.floor(requestedTokens) : 2800));
+      // Chia thời gian còn lại để mỗi provider có cơ hội trả lời trước timeout 90 giây của web.
+      const deadline = Date.now() + 85000;
+      let lastError;
+      for (const [index, name] of candidates.entries()) {
+        try {
+          const timeout = Math.max(1, Math.floor((deadline - Date.now()) / (candidates.length - index)));
+          const result = await callProvider(name, prompt, body.model, maxOutputTokens, env, keys[name], timeout);
+          return json({ ...result, metadata: body.metadata || null }, 200, origin);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
     } catch (error) {
       const status = Number(error?.status || 0);
       const safeStatus = status >= 400 && status <= 599 ? status : 502;

@@ -61,6 +61,13 @@ assert.ok(success.stored.includes("./browser-ai-worker.js"));
 assert.ok(success.stored.includes("./webgpu-failure-guard.js"));
 assert.ok(success.stored.includes("./browser-native-ai.js"));
 assert.ok(success.stored.includes("./ai-lite-router.js"));
+assert.ok(success.stored.includes("./cloud-ai.js"));
+for (const host of ["api.anthropic.com", "api.openai.com", "tuvi.example.workers.dev"]) {
+  success.handlers.get("fetch")({
+    request: new Request(`https://${host}/health`),
+    respondWith() { assert.fail("Cloud request intercepted by service worker"); },
+  });
+}
 assert.ok(success.stored.includes("./browser-cpu-ai.js"));
 assert.ok(success.stored.includes("./browser-cpu-ai-worker.js"));
 assert.ok(success.stored.includes("./hiep-tuvi-06b.js"));

@@ -161,18 +161,6 @@
     modelNode.onchange = () => localStorage.setItem(LOCAL_MODEL_KEY, modelNode.value);
   }
 
-  function configureLocalAiUi(browserAi) {
-    const endpoint = document.getElementById("geminiEndpoint");
-    const endpointLabel = endpoint?.closest?.("label");
-    if (endpointLabel) endpointLabel.hidden = true;
-    if (endpoint) endpoint.value = "";
-    const save = document.getElementById("saveGeminiSettingsButton");
-    if (save) save.hidden = true;
-    const test = document.getElementById("testGeminiButton");
-    if (test) test.textContent = "Kiểm tra WebGPU";
-    populateLocalModels(browserAi);
-  }
-
   function localModelCandidates(browserAi, preferredId) {
     const models = Array.isArray(browserAi?.MODELS) ? [...browserAi.MODELS] : [];
     const preferred = browserAi.modelRecord?.(preferredId) || models[0];
@@ -218,11 +206,11 @@
     return `${prompt}\n\n### HIEP TUVI KNOWLEDGE PACK — NATIVE RULES, KHÔNG ĐƯỢC DÙNG NHƯ VERDICT\n${pack}`;
   }
 
-  window.restoreGeminiSettings = function restoreAutoHiepTuViSettings() {
+  window.restoreGeminiSettings ||= function restoreAutoHiepTuViSettings() {
     setStatus("AI tự động · đang kiểm tra WebGPU", "");
     Promise.all([loadBrowserAI(), loadHiepTuViKnowledge()]).then(([browserAi]) => {
       if (!browserAi) return;
-      configureLocalAiUi(browserAi);
+      populateLocalModels(browserAi);
       setStatus(browserAi.webGpuAvailable() ? "AI tự động · WebGPU sẵn sàng" : "AI tự động · thiếu WebGPU", browserAi.webGpuAvailable() ? "ready" : "error");
     });
   };
@@ -234,7 +222,7 @@
     try {
       const browserAi = await loadBrowserAI();
       if (!browserAi) throw new Error("Không tải được lớp Browser AI.");
-      configureLocalAiUi(browserAi);
+      populateLocalModels(browserAi);
       const info = await browserAi.inspectGpu();
       if (!info.ok) throw new Error(info.reason || "WebGPU không sẵn sàng.");
       setStatus("WebGPU sẵn sàng · Hiep TuVi AI sẽ tự chạy sau khi lập lá số", "ready");
@@ -268,7 +256,7 @@
       if (!ai?.fullReportPlan || !ai?.buildFullReportSectionPrompt) throw new Error("Lớp Hiep TuVi FULL_REPORT chưa sẵn sàng.");
       if (!knowledge?.forJob) throw new Error("Knowledge pack Hiep Tuvi chưa sẵn sàng.");
       if (!browserAi?.webGpuAvailable()) throw new Error("Thiết bị không có WebGPU. AI local không thể tự chạy.");
-      configureLocalAiUi(browserAi);
+      populateLocalModels(browserAi);
 
       let selectedModel = document.getElementById("geminiModel")?.value || localStorage.getItem(LOCAL_MODEL_KEY) || browserAi.DEFAULT_MODEL;
       localStorage.setItem(LOCAL_MODEL_KEY, selectedModel);
@@ -420,7 +408,7 @@
     loadHiepTuViAI();
     loadHiepTuViKnowledge();
     loadBrowserAI().then((browserAi) => {
-      if (browserAi) configureLocalAiUi(browserAi);
+      if (browserAi) populateLocalModels(browserAi);
     });
 
     const button = document.getElementById("generateButton");
@@ -432,7 +420,7 @@
       new MutationObserver(keepIndependentLabel).observe(button, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
     }
 
-    if (document.querySelectorAll) {
+    if (!window.HiepAiLiteRouter && document.querySelectorAll) {
       document.querySelectorAll(".gemini-panel, .inline-gemini-actions").forEach((node) => { node.hidden = false; });
       const resultPanel = document.getElementById("geminiResultPanel");
       const heading = resultPanel?.querySelector?.("h2");

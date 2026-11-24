@@ -16,8 +16,8 @@ const nativeAi = readFileSync(join(root, "browser-native-ai.js"), "utf8");
 const domain06b = readFileSync(join(root, "hiep-tuvi-06b-domain.js"), "utf8");
 const controller06b = readFileSync(join(root, "hiep-tuvi-06b.js"), "utf8");
 
-assert.match(html, /Web v1\.25 Hiep TuVi 0\.6B/);
-assert.match(html, /WEB v1\.25 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
+assert.match(html, /Web v1\.26 Hiep TuVi 0\.6B/);
+assert.match(html, /WEB v1\.26 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
 assert.match(html, /Hiep TuVi 0\.6B — luận sâu từng cung/);
 assert.match(html, /id="hiep06bPanel"/);
 assert.match(html, /id="hiep06bPalaceSelect"/);
@@ -33,18 +33,22 @@ assert.match(html, /script-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
 assert.match(html, /connect-src[^;]*https:\/\/huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.huggingface\.co/);
 assert.match(html, /connect-src[^;]*https:\/\/\*\.xethub\.hf\.co/);
+for (const origin of ["https://*.workers.dev", "https://api.anthropic.com", "https://api.openai.com"]) {
+  assert.ok(html.match(/connect-src[^;]*/)[0].includes(origin));
+}
+assert.match(html, /cloud-ai\.js\?v=1\.0\.0" defer><\/script>\s*<script src="ai-lite-router/);
 
 // Deterministic engine remains the FACT/CALC authority and always renders Local Rules first.
 assert.match(app, /renderOfflineSummary\(state\.chart\)/);
 assert.match(worker, /vendor\/pyodide/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.25-hiep-tuvi-06b-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.26-cloud-ai-1/);
 assert.match(serviceWorker, /hiep-tuvi-06b\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-worker\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-domain\.js/);
 assert.match(serviceWorker, /vendor\/pyodide\/pyodide\.asm\.wasm/);
 
 // Heavy legacy AI must not auto-load after chart generation in v1.25.
-assert.match(router, /VERSION = "1\.1\.0"/);
+assert.match(router, /VERSION = "1\.2\.0"/);
 assert.match(router, /manual-ai-only/);
 assert.match(router, /không tự tải bất kỳ model AI nào sau khi lập lá số/i);
 assert.match(router, /Qwen3-1\.7B-q4f16_1-MLC/);
