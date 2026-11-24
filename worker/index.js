@@ -154,8 +154,12 @@ export default {
 
       const requestedTokens = Number(body.max_output_tokens || 2800);
       const maxOutputTokens = Math.max(256, Math.min(8192, Number.isFinite(requestedTokens) ? Math.floor(requestedTokens) : 2800));
-      // Chia thời gian còn lại để mỗi provider có cơ hội trả lời trước timeout 90 giây của web.
-      const deadline = Date.now() + 85000;
+      // Chừa 5 giây cho web nhận phản hồi và giới hạn timeout do client yêu cầu.
+      const requestedTimeout = Number(body.timeout_ms);
+      const clientTimeout = Number.isFinite(requestedTimeout)
+        ? Math.max(6000, Math.min(240000, requestedTimeout))
+        : 90000;
+      const deadline = Date.now() + clientTimeout - 5000;
       let lastError;
       for (const [index, name] of candidates.entries()) {
         try {

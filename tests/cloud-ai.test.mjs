@@ -7,7 +7,7 @@ const source = readFileSync(new URL("../cloud-ai.js", import.meta.url), "utf8");
 const endpoint = "https://tuvi.example.workers.dev";
 const endpointKey = "tuvi-gemini-worker-endpoint";
 
-function browser(values = {}, payload = {}, status = 200) {
+function browser(values = {}, payload = {}, status = 200, timers = { setTimeout, clearTimeout }) {
   const storage = new Map(Object.entries(values));
   const calls = [];
   const window = {
@@ -23,7 +23,7 @@ function browser(values = {}, payload = {}, status = 200) {
       return Response.json(payload, { status });
     },
   };
-  vm.runInNewContext(source, { window, URL, AbortController, setTimeout, clearTimeout });
+  vm.runInNewContext(source, { window, URL, AbortController, ...timers });
   return { api: window.HiepCloudAI, calls, window, storage };
 }
 
@@ -46,6 +46,23 @@ test("legacy Worker setting sends auto to /analyze without browser credentials",
   assert.deepEqual(calls[0].body, { prompt: "prompt", provider: "auto", max_output_tokens: 1370 });
   assert.deepEqual({ ...calls[0].headers }, { "Content-Type": "application/json" });
   assert.equal(calls[0].credentials, "omit");
+});
+
+test("analyze uses the default and custom timeouts to abort fetch and forwards the Worker limits", async () => {
+  const delays = [];
+  const timers = {
+    setTimeout(abort, delay) {
+      delays.push(delay);
+      abort();
+      return delay;
+    },
+    clearTimeout() {},
+  };
+  const { api, calls } = browser({ [endpointKey]: endpoint }, {}, 200, timers);
+  await assert.rejects(api.analyze("prompt"), { name: "AbortError" });
+  await assert.rejects(api.analyze("prompt", { maxTokens: 8000, timeoutMs: 240000 }), { name: "AbortError" });
+  assert.deepEqual(delays, [90000, 240000]);
+  assert.deepEqual(calls[1].body, { prompt: "prompt", provider: "auto", max_output_tokens: 8000, timeout_ms: 240000 });
 });
 
 for (const provider of ["anthropic", "openai"]) {

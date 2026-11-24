@@ -16,8 +16,8 @@ const nativeAi = readFileSync(join(root, "browser-native-ai.js"), "utf8");
 const domain06b = readFileSync(join(root, "hiep-tuvi-06b-domain.js"), "utf8");
 const controller06b = readFileSync(join(root, "hiep-tuvi-06b.js"), "utf8");
 
-assert.match(html, /Web v1\.26 Hiep TuVi 0\.6B/);
-assert.match(html, /WEB v1\.26 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
+assert.match(html, /Web v1\.27 Hiep TuVi 0\.6B/);
+assert.match(html, /WEB v1\.27 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
 assert.match(html, /Hiep TuVi 0\.6B — luận sâu từng cung/);
 assert.match(html, /id="hiep06bPanel"/);
 assert.match(html, /id="hiep06bPalaceSelect"/);
@@ -36,21 +36,18 @@ assert.match(html, /connect-src[^;]*https:\/\/\*\.xethub\.hf\.co/);
 for (const origin of ["https://*.workers.dev", "https://api.anthropic.com", "https://api.openai.com"]) {
   assert.ok(html.match(/connect-src[^;]*/)[0].includes(origin));
 }
-assert.match(html, /cloud-ai\.js\?v=1\.0\.0" defer><\/script>\s*<script src="ai-lite-router/);
+assert.match(html, /cloud-ai\.js\?v=1\.1\.0" defer><\/script>\s*<script src="ai-lite-router\.js\?v=1\.3\.0/);
 
 // Deterministic engine remains the FACT/CALC authority and always renders Local Rules first.
 assert.match(app, /renderOfflineSummary\(state\.chart\)/);
 assert.match(worker, /vendor\/pyodide/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.26-cloud-ai-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.27-cloud-ai-1/);
 assert.match(serviceWorker, /hiep-tuvi-06b\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-worker\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-domain\.js/);
 assert.match(serviceWorker, /vendor\/pyodide\/pyodide\.asm\.wasm/);
 
-// Heavy legacy AI must not auto-load after chart generation in v1.25.
-assert.match(router, /VERSION = "1\.2\.0"/);
-assert.match(router, /manual-ai-only/);
-assert.match(router, /không tự tải bất kỳ model AI nào sau khi lập lá số/i);
+assert.match(router, /VERSION = "1\.3\.0"/);
 assert.match(router, /Qwen3-1\.7B-q4f16_1-MLC/);
 assert.match(router, /root\.runGeminiAnalysis = runLite/);
 
@@ -67,4 +64,4 @@ assert.match(nativeAi, /Translator\.create/);
 assert.match(autonomousStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 assert.match(autonomousStyles, /overflow-x:\s*hidden/);
 
-console.log("PASS: v1.25 integrates Hiep TuVi 0.6B on-demand without replacing deterministic Local Rules");
+console.log("PASS: v1.27 integrates automatic cloud interpretation and Hiep TuVi 0.6B on demand");

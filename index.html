@@ -6,16 +6,16 @@
   <meta name="theme-color" content="#6b2f24">
   <meta name="description" content="Lập lá số Tử Vi, Bát Tự, Local Rules đầy đủ và Hiep TuVi 0.6B chuyên ngành chạy cục bộ theo yêu cầu.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.xethub.hf.co https://*.workers.dev https://api.anthropic.com https://api.openai.com; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <title>Tử Vi + Bát Tự — Web v1.26 Hiep TuVi 0.6B</title>
+  <title>Tử Vi + Bát Tự — Web v1.27 Hiep TuVi 0.6B</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css?v=1.25">
-  <link rel="stylesheet" href="styles-autonomous.css?v=1.26">
+  <link rel="stylesheet" href="styles-autonomous.css?v=1.27">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">WEB v1.26 · TUVI111 FACT/CALC · LOCAL RULES FULL · HIEP-TUVI 0.6B</div>
+      <div class="eyebrow">WEB v1.27 · TUVI111 FACT/CALC · LOCAL RULES FULL · HIEP-TUVI 0.6B</div>
       <h1>Tử Vi + Bát Tự</h1>
       <p>Tuvi111 khóa FACT/CALC và tạo đủ 12 cung bằng Local Rules. Hiep TuVi 0.6B được tích hợp ngay trong phần mềm để luận sâu từng cung; model chỉ tải khi bạn chủ động bấm chạy.</p>
     </div>
@@ -121,14 +121,14 @@
             <section id="geminiResultPanel" class="gemini-result-panel inline-gemini-result">
               <div class="gemini-heading">
                 <div>
-                  <span class="section-kicker">LOCAL RULES · AI THEO YÊU CẦU</span>
+                  <span class="section-kicker">LOCAL RULES · AI CLOUD</span>
                   <h2>Hiep TuVi — 12 cung đầy đủ và AI tổng hợp bổ sung</h2>
                 </div>
-                <span class="tag">v1.26 · LOCAL + AI</span>
+                <span class="tag">v1.27 · LOCAL + AI</span>
               </div>
               <div class="inline-gemini-actions">
                 <button id="runGeminiInlineButton" class="primary-button" type="button">AI tổng hợp lại</button>
-                <span class="muted">12 cung được tạo trước bằng Local Rules. Bấm để tổng hợp bổ sung bằng AI.</span>
+                <span class="muted">AI Cloud tự luận giải sau khi lập lá số nếu đã cấu hình và có kết nối.</span>
               </div>
               <div id="geminiOutput" class="gemini-output" aria-live="polite">
                 <p class="muted">Lập lá số để xem báo cáo Local Rules đủ 12 cung.</p>
@@ -267,7 +267,7 @@
           </div>
 
           <div class="ai-result-location-note">
-            Bấm Lưu để áp dụng cấu hình. Khi bạn bấm “AI tổng hợp lại”, prompt lá số sẽ được gửi đến dịch vụ đã chọn nếu có kết nối. Khi cloud không khả dụng, web dùng AI cục bộ hoặc Local Rules.
+            Bấm Lưu để áp dụng cấu hình. Khi lập lá số hoặc bấm “AI tổng hợp lại”, web gửi toàn bộ báo cáo cục bộ đến dịch vụ đã chọn nếu có kết nối. Nếu cloud không khả dụng khi lập lá số, web hiển thị báo cáo cục bộ.
           </div>
         </section>
       </section>
@@ -284,7 +284,7 @@
 
   <footer>
     <p>Tử Vi và Bát Tự chỉ dùng tham khảo xu hướng; không thay thế tư vấn y tế, tài chính, pháp lý hoặc nghề nghiệp.</p>
-    <p>Web v1.26 · Tuvi111 deterministic · Local Rules Full · Hiep TuVi 0.6B on-demand.</p>
+    <p>Web v1.27 · Tuvi111 deterministic · Local Rules Full · Hiep TuVi 0.6B on-demand.</p>
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -303,8 +303,8 @@
   <script src="offline-summary.js?v=2.2.0" defer></script>
   <script src="browser-native-ai.js?v=1.0.1" defer></script>
   <script src="browser-cpu-ai.js?v=1.1.0" defer></script>
-  <script src="cloud-ai.js?v=1.0.0" defer></script>
-  <script src="ai-lite-router.js?v=1.2.0" defer></script>
+  <script src="cloud-ai.js?v=1.1.0" defer></script>
+  <script src="ai-lite-router.js?v=1.3.0" defer></script>
   <script src="hiep-tuvi-06b.js?v=0.1.0" defer></script>
   <script src="hiep-tuvi-06b-domain.js?v=0.1.1" defer></script>
 </body>

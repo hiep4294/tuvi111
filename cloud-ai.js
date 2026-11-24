@@ -4,6 +4,7 @@
   const ENDPOINT = "tuvi-gemini-worker-endpoint";
   const PROVIDER = "tuvi-cloud-provider";
   const KEY = "tuvi-cloud-key";
+  const DEFAULT_TIMEOUT_MS = 90000;
   const MODELS = { anthropic: "claude-sonnet-5-5", openai: "gpt-5-mini" };
 
   function workerBase(value) {
@@ -61,12 +62,12 @@
     return config;
   }
 
-  async function request(url, headers, body, signal) {
+  async function request(url, headers, body, signal, timeoutMs = DEFAULT_TIMEOUT_MS) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (signal?.aborted) abort();
     else signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(abort, 90000);
+    const timer = setTimeout(abort, timeoutMs);
     try {
       const response = await root.fetch(url, {
         method: body ? "POST" : "GET",
@@ -96,7 +97,7 @@
     return { base: "https://api.openai.com/v1", headers: { Authorization: `Bearer ${key}` } };
   }
 
-  async function analyze(prompt, { maxTokens = 1800, signal } = {}) {
+  async function analyze(prompt, { maxTokens = 1800, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     const config = activeSettings();
     let { provider } = config;
     let model = MODELS[provider];
@@ -104,7 +105,8 @@
     if (config.mode === "worker") {
       const data = await request(config.endpoint + "/analyze", {}, {
         prompt, provider: "auto", max_output_tokens: maxTokens,
-      }, signal);
+        ...(timeoutMs !== DEFAULT_TIMEOUT_MS ? { timeout_ms: timeoutMs } : {}),
+      }, signal, timeoutMs);
       text = data.text;
       provider = data.provider || "gemini";
       model = data.model;
@@ -113,10 +115,10 @@
       const messages = [{ role: "user", content: prompt }];
       let data;
       if (provider === "anthropic") {
-        data = await request(base + "/messages", headers, { model, messages, max_tokens: maxTokens, temperature: 0.35 }, signal);
+        data = await request(base + "/messages", headers, { model, messages, max_tokens: maxTokens, temperature: 0.35 }, signal, timeoutMs);
         text = data.content?.map(part => part.text).filter(Boolean).join("\n");
       } else {
-        data = await request(base + "/chat/completions", headers, { model, messages, max_completion_tokens: maxTokens }, signal);
+        data = await request(base + "/chat/completions", headers, { model, messages, max_completion_tokens: maxTokens }, signal, timeoutMs);
         text = data.choices?.[0]?.message?.content;
       }
       model = data.model || model;

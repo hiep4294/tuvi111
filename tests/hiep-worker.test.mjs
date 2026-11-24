@@ -53,6 +53,20 @@ test("auto skips missing keys and stops after Anthropic success", async t => {
   assert.equal(fetch.mock.callCount(), 1);
 });
 
+test("Worker uses the expanded token budget and bounds the provider timeout", async t => {
+  t.mock.method(Date, "now", () => 1000);
+  const timer = t.mock.method(globalThis, "setTimeout");
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    assert.equal(JSON.parse(options.body).max_tokens, 8000);
+    return Response.json({ content: [{ text: "ok" }] });
+  });
+  for (const timeout_ms of [240000, 500000]) {
+    const response = await analyze({ ANTHROPIC_API_KEY: "example-a" }, { max_output_tokens: 8000, timeout_ms });
+    assert.equal(response.status, 200);
+  }
+  assert.deepEqual(timer.mock.calls.map(call => call.arguments[1]), [235000, 235000]);
+});
+
 test("auto skips Anthropic without a key and falls back to OpenAI after an upstream failure", async t => {
   const attempts = [];
   t.mock.method(globalThis, "fetch", async (url, options) => {

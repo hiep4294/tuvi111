@@ -32,10 +32,8 @@ const guard = readFileSync(join(root, "webgpu-failure-guard.js"), "utf8");
 assert.match(autonomous, /__HIEP_TUVI_CHART__/);
 assert.match(autonomous, /scheduleAutomaticReport/);
 assert.match(liteRouter, /root\.runGeminiAnalysis = runLite/);
-assert.match(liteRouter, /VERSION = "1\.2\.0"/);
-assert.match(liteRouter, /manual-ai-only/);
-assert.match(liteRouter, /if \(automatic\)/);
-assert.match(liteRouter, /Local Rules đã sẵn sàng · AI 0\.6B chạy theo yêu cầu/);
+assert.match(liteRouter, /VERSION = "1\.3\.0"/);
+assert.match(liteRouter, /runCloudInterpretation\(chart\)/);
 assert.match(liteRouter, /buildBrowserSummaryPrompt/);
 assert.match(liteRouter, /buildCompactEvidenceText/);
 assert.doesNotMatch(liteRouter, /fullReportPlan/);
@@ -88,7 +86,7 @@ assert.match(serviceWorker, /\.\/ai-lite-router\.js/);
 assert.match(serviceWorker, /\.\/browser-cpu-ai\.js/);
 assert.match(serviceWorker, /\.\/browser-cpu-ai-worker\.js/);
 assert.doesNotMatch(serviceWorker, /"\.\/cpu-ai-fallback\.js"/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.26-cloud-ai-1/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.27-cloud-ai-1/);
 
 // Core knowledge/report layers remain unchanged.
 assert.match(specialist, /VERSION = "2\.1\.0"/);

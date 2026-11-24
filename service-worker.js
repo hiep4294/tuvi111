@@ -1,4 +1,4 @@
-const CACHE = "tuvi-battu-web-v1.26-cloud-ai-1";
+const CACHE = "tuvi-battu-web-v1.27-cloud-ai-1";
 const CORE_ASSETS = [
   "./",
   "./index.html",
