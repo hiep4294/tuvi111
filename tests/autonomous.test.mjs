@@ -8,6 +8,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "autonomous.js"), "utf8");
 const listeners = new Map();
 const storage = new Map();
+const scheduledReports = [];
 
 assert.match(source, /hiep-tuvi-ai\.js\?v=2\.0\.0/);
 assert.match(source, /browser-ai\.js\?v=1\.1\.1/);
@@ -35,7 +36,10 @@ const context = {
   Promise,
   Date,
   URL,
-  setTimeout,
+  setTimeout(callback, ms) {
+    if (ms === 180) return scheduledReports.push(callback);
+    return setTimeout(callback, ms);
+  },
   clearTimeout,
   Error,
   MutationObserver: class { observe() {} },
@@ -53,7 +57,9 @@ const context = {
     querySelector() { return null; },
   },
   setGeminiStatus(message) { context.lastStatus = message; },
-  callWorker() { return Promise.resolve({ ok: true }); },
+  callWorker(action) {
+    return Promise.resolve(action === "generate" ? { chart: { chart_id: "test-chart" } } : { ok: true });
+  },
   parseForm() { return { year: 2023, annual_year: 2026, gender: 1, name: "Mau" }; },
   toast(message) { context.lastToast = message; },
   addEventListener(type, handler) { listeners.set(type, handler); },
@@ -72,5 +78,14 @@ const form = context.parseForm();
 assert.equal(form.year, 2023);
 nodes.birthDate.value = "2023-02-31";
 assert.throws(() => context.parseForm(), /Ngày sinh không hợp lệ/);
+
+const reports = [];
+context.runGeminiAnalysis = (options) => reports.push({ ...options });
+context.__HIEP_ANALYSIS_CHOICE__ = "local";
+const generation = context.callWorker("generate");
+context.__HIEP_ANALYSIS_CHOICE__ = "ai";
+await generation;
+scheduledReports.shift()();
+assert.deepEqual(reports, [{ automatic: true, analysisChoice: "local" }]);
 
 console.log("PASS: AI full report is automatic, local-first, and form validation remains active");

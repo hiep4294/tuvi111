@@ -16,8 +16,8 @@ const nativeAi = readFileSync(join(root, "browser-native-ai.js"), "utf8");
 const domain06b = readFileSync(join(root, "hiep-tuvi-06b-domain.js"), "utf8");
 const controller06b = readFileSync(join(root, "hiep-tuvi-06b.js"), "utf8");
 
-assert.match(html, /Web v1\.29 Hiep TuVi 0\.6B/);
-assert.match(html, /WEB v1\.29 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
+assert.match(html, /Web v1\.30 Hiep TuVi 0\.6B/);
+assert.match(html, /WEB v1\.30 · TUVI111 FACT\/CALC · LOCAL RULES FULL · HIEP-TUVI 0\.6B/);
 assert.match(html, /Hiep TuVi 0\.6B — luận sâu từng cung/);
 assert.match(html, /id="hiep06bPanel"/);
 assert.match(html, /id="hiep06bPalaceSelect"/);
@@ -37,19 +37,19 @@ for (const origin of ["https://*.workers.dev", "https://baohanh.103-161-17-148.s
   assert.ok(html.match(/connect-src[^;]*/)[0].includes(origin));
 }
 assert.doesNotMatch(html, /connect-src[^;]*chatgpt\.com/);
-assert.match(html, /autonomous\.js\?v=1\.28/);
-assert.match(html, /cloud-ai\.js\?v=1\.2\.0" defer><\/script>\s*<script src="ai-lite-router\.js\?v=1\.5\.0/);
+assert.match(html, /autonomous\.js\?v=1\.30/);
+assert.match(html, /cloud-ai\.js\?v=1\.3\.0" defer><\/script>\s*<script src="analysis-choice\.js\?v=1\.30" defer><\/script>\s*<script src="ai-lite-router\.js\?v=1\.6\.0" defer/);
 
 // Deterministic engine remains the FACT/CALC authority and always renders Local Rules first.
 assert.match(app, /renderOfflineSummary\(state\.chart\)/);
 assert.match(worker, /vendor\/pyodide/);
-assert.match(serviceWorker, /tuvi-battu-web-v1\.29-bridge/);
+assert.match(serviceWorker, /tuvi-battu-web-v1\.30-bridge/);
 assert.match(serviceWorker, /hiep-tuvi-06b\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-worker\.js/);
 assert.match(serviceWorker, /hiep-tuvi-06b-domain\.js/);
 assert.match(serviceWorker, /vendor\/pyodide\/pyodide\.asm\.wasm/);
 
-assert.match(router, /VERSION = "1\.5\.0"/);
+assert.match(router, /VERSION = "1\.6\.0"/);
 assert.match(router, /Qwen3-1\.7B-q4f16_1-MLC/);
 assert.match(router, /root\.runGeminiAnalysis = runLite/);
 
@@ -66,4 +66,4 @@ assert.match(nativeAi, /Translator\.create/);
 assert.match(autonomousStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
 assert.match(autonomousStyles, /overflow-x:\s*hidden/);
 
-console.log("PASS: v1.29 integrates automatic cloud interpretation, ChatGPT paste and Hiep TuVi 0.6B on demand");
+console.log("PASS: v1.30 loads the analysis choice before the router and retains Hiep TuVi 0.6B on demand");

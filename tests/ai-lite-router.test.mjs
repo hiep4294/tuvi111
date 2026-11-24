@@ -9,7 +9,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "ai-lite-router.js"), "utf8");
 const autonomous = readFileSync(join(root, "autonomous.js"), "utf8");
 
-assert.match(source, /VERSION = "1\.5\.0"/);
+assert.match(source, /VERSION = "1\.6\.0"/);
 assert.match(source, /GPU_LITE_MODEL = "Qwen3-1\.7B-q4f16_1-MLC"/);
 assert.match(source, /buildBrowserSummaryPrompt/);
 assert.match(source, /buildCompactEvidenceText/);
@@ -167,6 +167,37 @@ test("automatic and manual cloud read the full local report and display safe HTM
     assert.equal(heading.textContent, "Hiep TuVi — luận giải AI");
   }
   assert.deepEqual(calls, ["cloud", "cloud"]);
+});
+
+test("automatic local choice bypasses cloud and the pasted reply but still allows manual analysis", async () => {
+  const storage = new Map([["tuvi-chatgpt-reply:1", "Bản ChatGPT đã dán"]]);
+  const { window, calls, output, local } = router({ storage });
+  window.__HIEP_ANALYSIS_CHOICE__ = "local";
+  let availabilityChecks = 0;
+  window.HiepCloudAI.isAvailable = () => { availabilityChecks++; return true; };
+  assert.deepEqual({ ...await window.runGeminiAnalysis({ automatic: true }) }, { skipped: true, reason: "user-chose-local" });
+  assert.equal(availabilityChecks, 0);
+  assert.deepEqual(calls, []);
+  assert.equal(output.childNodes[0].textContent, "Đã chọn lá số cục bộ");
+  assert.equal(output.childNodes[1], local);
+  assert.equal(output.dataset.raw, localRaw);
+  assert.equal(window.status, "Đã chọn lá số cục bộ");
+  assert.equal(storage.get("tuvi-chatgpt-reply:1"), "Bản ChatGPT đã dán");
+  assert.equal((await window.runGeminiAnalysis()).backend, "cloud");
+  assert.deepEqual(calls, ["cloud"]);
+});
+
+test("scheduled AI choice uses the bridge even if a newer selection is local", async () => {
+  const { window } = router();
+  window.__HIEP_ANALYSIS_CHOICE__ = "local";
+  window.HiepCloudAI.isAvailable = ({ bridge }) => bridge;
+  window.HiepCloudAI.settings = ({ bridge }) => ({ mode: bridge ? "worker" : "direct", token: "demo" });
+  window.HiepCloudAI.analyze = async (_, { bridge, timeoutMs }) => {
+    assert.equal(bridge, true);
+    assert.equal(timeoutMs, 600000);
+    return { text: "Luận giải", provider: "chatgpt-desktop" };
+  };
+  assert.equal((await window.runGeminiAnalysis({ automatic: true, analysisChoice: "ai" })).backend, "cloud");
 });
 
 for (const [options, reason] of [

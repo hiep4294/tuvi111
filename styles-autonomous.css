@@ -17,6 +17,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .prompt-controls button:hover, .json-toolbar button:hover { background: #f1e4d2; }
 .engine-state { border-radius: 8px; }
 .privacy-note { padding-left: 10px; border-left: 3px solid #0f766e; }
+
+.analysis-choice {
+  width: min(26rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  padding: clamp(16px, 5vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.analysis-choice[open], .analysis-choice form { display: grid; gap: 10px; }
+.analysis-choice::backdrop { background: rgb(0 0 0 / 48%); }
+.analysis-choice h2 { margin: 0 0 4px; font-size: 1.25rem; }
+.analysis-choice form { border-top: 1px solid var(--line); padding-top: 12px; }
+.analysis-choice-status { margin: 0; color: var(--bad); font-size: .9rem; }
+.analysis-choice:has(input:read-only) .analysis-choice-status { color: var(--muted); }
+.analysis-choice button:disabled { opacity: .45; cursor: wait; }
+
 .offline-ready { color: #0f766e; font-weight: 800; }
 .offline-meta { background: #dff3ee; color: #115e59; }
 .offline-reading { display: grid; gap: 0; }

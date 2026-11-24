@@ -126,6 +126,52 @@ test("default bridge needs a token and sends it on both requests", async () => {
   assert.equal(api.isAvailable(), false);
 });
 
+test("token verification posts an empty body and classifies bridge HTTP statuses", async () => {
+  for (const [status, expected] of [[200, "ok"], [400, "ok"], [401, "wrong"], [403, "wrong"], [500, "offline"], [502, "offline"], [504, "offline"]]) {
+    const { api, calls, storage } = browser({ [endpointKey]: endpoint }, {}, status);
+    assert.equal(await api.verifyToken("test-token"), expected);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, endpoint + "/analyze");
+    assert.equal(calls[0].method, "POST");
+    assert.deepEqual(calls[0].body, {});
+    assert.equal(calls[0].headers["X-Tuvi-Token"], "test-token");
+    assert.equal(storage.has("tuvi-bridge-token"), false);
+  }
+  const { api, window } = browser();
+  window.fetch = async () => new Response(null, { status: 204 });
+  assert.equal(await api.verifyToken("test-token"), "ok");
+  window.fetch = async () => { throw new TypeError("Network error"); };
+  assert.equal(await api.verifyToken("test-token"), "offline");
+});
+
+test("verification times out at the default or requested limit", async () => {
+  const delays = [];
+  const { api } = browser({}, {}, 200, {
+    setTimeout(abort, ms) { delays.push(ms); abort(); },
+    clearTimeout() {},
+  });
+  assert.equal(await api.verifyToken("test-token"), "offline");
+  assert.equal(await api.verifyToken("test-token", { timeoutMs: 250 }), "offline");
+  assert.deepEqual(delays, [8000, 250]);
+});
+
+test("explicit bridge analysis uses the verified bridge token while direct settings stay active", async () => {
+  const { api, calls } = browser({
+    [endpointKey]: endpoint,
+    "tuvi-cloud-provider": "openai",
+    "tuvi-cloud-key": "direct-test-key",
+    "tuvi-bridge-token": "bridge-test-token",
+  }, { text: "Luận giải", provider: "chatgpt-desktop" });
+  const base = api.DEFAULT_BRIDGE_ENDPOINT;
+  assert.equal(await api.verifyToken("bridge-test-token"), "ok");
+  assert.equal(api.isAvailable({ bridge: true }), true);
+  assert.equal((await api.analyze("prompt", { bridge: true })).provider, "chatgpt-desktop");
+  assert.deepEqual(calls.map(call => call.url), [base + "/analyze", base + "/health", base + "/analyze"]);
+  assert.ok(calls.every(call => call.headers["X-Tuvi-Token"] === "bridge-test-token"));
+  assert.equal(api.settings().mode, "direct");
+  assert.equal(api.settings().key, "direct-test-key");
+});
+
 test("loopback Worker URLs work and remote HTTP is rejected", () => {
   for (const host of ["localhost", "127.0.0.1"]) {
     assert.equal(browser({ [endpointKey]: "http://" + host + ":8787" }).api.isAvailable(), true);

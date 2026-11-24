@@ -326,7 +326,7 @@
     }
   };
 
-  function scheduleAutomaticReport(generation, chartId) {
+  function scheduleAutomaticReport(generation, chartId, analysisChoice) {
     const tryStart = () => {
       if (generation !== chartGeneration) return;
       if (window.__HIEP_TUVI_CHART__?.chart_id !== chartId) return;
@@ -334,12 +334,13 @@
         setTimeout(tryStart, 250);
         return;
       }
-      window.runGeminiAnalysis?.({ automatic: true });
+      window.runGeminiAnalysis?.({ automatic: true, analysisChoice });
     };
     setTimeout(tryStart, 180);
   }
 
   window.callWorker = function callWorkerWithTimeout(action, payload = {}) {
+    const analysisChoice = window.__HIEP_ANALYSIS_CHOICE__ ?? null;
     return withTimeout(
       Promise.resolve(originalCallWorker.call(this, action, payload)),
       action === "generate" ? 120000 : 30000,
@@ -351,7 +352,7 @@
         window.__HIEP_TUVI_CHART__ = result.chart;
         const generation = ++chartGeneration;
         activeRun += 1; // invalidate any report still running for the previous chart
-        scheduleAutomaticReport(generation, result.chart.chart_id);
+        scheduleAutomaticReport(generation, result.chart.chart_id, analysisChoice);
       }
       return result;
     });

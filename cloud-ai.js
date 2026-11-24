@@ -19,13 +19,14 @@
     return url.href.replace(/\/+$/, "").replace(/\/(health|analyze)$/, "");
   }
 
-  function settings() {
+  function settings({ bridge = false } = {}) {
     try {
       const provider = root.localStorage.getItem(PROVIDER);
-      if (provider === "anthropic" || provider === "openai") {
+      const direct = provider === "anthropic" || provider === "openai";
+      if (direct && !bridge) {
         return { mode: "direct", provider, key: root.localStorage.getItem(KEY) || "", endpoint: "" };
       }
-      const endpoint = workerBase(root.localStorage.getItem(ENDPOINT) || DEFAULT_BRIDGE_ENDPOINT);
+      const endpoint = direct ? DEFAULT_BRIDGE_ENDPOINT : workerBase(root.localStorage.getItem(ENDPOINT) || DEFAULT_BRIDGE_ENDPOINT);
       return { mode: "worker", endpoint, token: root.localStorage.getItem(TOKEN) || "", provider: "anthropic", key: "" };
     } catch (_) {
       return { mode: "worker", endpoint: "", provider: "anthropic", key: "" };
@@ -59,18 +60,18 @@
     return Boolean(config.endpoint && (config.endpoint !== DEFAULT_BRIDGE_ENDPOINT || config.token));
   }
 
-  function isAvailable() {
-    return root.navigator.onLine === true && configured(settings());
+  function isAvailable(options) {
+    return root.navigator.onLine === true && configured(settings(options));
   }
 
-  function activeSettings() {
+  function activeSettings(options) {
     if (root.navigator.onLine !== true) throw new Error("Offline · dùng AI cục bộ/Local Rules");
-    const config = settings();
+    const config = settings(options);
     if (!configured(config)) throw new Error("Chưa cấu hình AI Cloud.");
     return config;
   }
 
-  async function request(url, headers, body, signal, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  async function request(url, headers, body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, readResponse = readJson) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (signal?.aborted) abort();
@@ -86,11 +87,29 @@
         redirect: "error",
         credentials: "omit",
       });
-      if (!response.ok) throw new Error(`AI Cloud HTTP ${response.status}`);
-      return await response.json();
+      return await readResponse(response);
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
+    }
+  }
+
+  function readJson(response) {
+    if (!response.ok) throw new Error(`AI Cloud HTTP ${response.status}`);
+    return response.json();
+  }
+
+  async function verifyToken(token, { timeoutMs = 8000 } = {}) {
+    const { endpoint } = settings({ bridge: true });
+    if (!endpoint) return "offline";
+    try {
+      return await request(endpoint + "/analyze", workerHeaders({ token }), {}, undefined, timeoutMs, (response) => {
+        if (response.status === 400 || response.ok) return "ok";
+        if (response.status === 401 || response.status === 403) return "wrong";
+        return "offline";
+      });
+    } catch (_) {
+      return "offline";
     }
   }
 
@@ -120,8 +139,8 @@
     }
   }
 
-  async function analyze(prompt, { maxTokens = 1800, signal, timeoutMs } = {}) {
-    const config = activeSettings();
+  async function analyze(prompt, { maxTokens = 1800, signal, timeoutMs, bridge = false } = {}) {
+    const config = activeSettings({ bridge });
     let { provider } = config;
     let model = MODELS[provider];
     let text;
@@ -164,5 +183,5 @@
     return model;
   }
 
-  root.HiepCloudAI = Object.freeze({ settings, save, isAvailable, analyze, test });
+  root.HiepCloudAI = Object.freeze({ DEFAULT_BRIDGE_ENDPOINT, settings, save, isAvailable, verifyToken, analyze, test });
 })(window);

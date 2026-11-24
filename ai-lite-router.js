@@ -1,7 +1,7 @@
 "use strict";
 
 (function installHiepAiLiteRouter(root) {
-  const VERSION = "1.5.0";
+  const VERSION = "1.6.0";
   const GPU_LITE_MODEL = "Qwen3-1.7B-q4f16_1-MLC";
   const CHATGPT_LABEL = "ChatGPT (trò chuyện)";
   const CHATGPT_REPLY_PREFIX = "tuvi-chatgpt-reply:";
@@ -211,16 +211,16 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
     setStatus(`Đã luận giải · ${providerLabel}`, "ready");
   }
 
-  async function runCloudInterpretation(chart, run) {
+  async function runCloudInterpretation(chart, run, bridge) {
     const localRaw = rememberLocalRaw(localReportFor(chart));
-    const config = root.HiepCloudAI.settings();
+    const config = root.HiepCloudAI.settings({ bridge });
     const worker = config.mode === "worker";
     const message = worker && config.token ? "ChatGPT đang luận giải trên máy nhà (có thể mất 1–5 phút)..." : "Đang luận giải bằng AI Cloud...";
     renderLoading(message);
     setStatus(message);
 
     const result = await root.HiepCloudAI.analyze(buildCloudInterpretationPrompt(localRaw, chart), {
-      maxTokens: 8000, timeoutMs: worker ? 600000 : 240000,
+      maxTokens: 8000, timeoutMs: worker ? 600000 : 240000, bridge,
     });
     if (chart !== root.__HIEP_TUVI_CHART__) return { skipped: true, reason: "chart-changed" };
     if (busyRun !== run) return { skipped: true, reason: "chatgpt-replaced" };
@@ -488,7 +488,18 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
       if (!automatic) alert("Chưa lập lá số.");
       return { skipped: true, reason: "no-chart" };
     }
-    const useCloud = (automatic || !options.preferNative) && root.HiepCloudAI?.isAvailable();
+    const choice = options.analysisChoice === undefined ? root.__HIEP_ANALYSIS_CHOICE__ : options.analysisChoice;
+    if (automatic && choice === "local") {
+      if (busyRun) setBusy(null);
+      if (chatGptDraftChart && chatGptDraftChart !== chart) setChatGptPasteChart();
+      showClearChatGptButton(false);
+      const note = "Đã chọn lá số cục bộ";
+      restoreLocalReport(chart, note);
+      setStatus(note, "ready");
+      return { skipped: true, reason: "user-chose-local" };
+    }
+    const bridge = automatic && choice === "ai";
+    const useCloud = (automatic || !options.preferNative) && root.HiepCloudAI?.isAvailable({ bridge });
     const savedReply = savedChatGptReply(chart);
     if (automatic) {
       if (chatGptDraftChart && chatGptDraftChart !== chart) setChatGptPasteChart();
@@ -524,7 +535,7 @@ ${localReportText || root.OfflineReading.readingToText(root.OfflineReading.build
     try {
       if (useCloud) {
         try {
-          return await runCloudInterpretation(chart, run);
+          return await runCloudInterpretation(chart, run, bridge);
         } catch (error) {
           if (isStale()) return stale();
           latestDiagnostics.push({ backend: "cloud", error: String(error?.message || error) });

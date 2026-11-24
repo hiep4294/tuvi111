@@ -37,7 +37,7 @@ function createHarness(failingAsset = "") {
     },
   };
   vm.runInNewContext(source, context, { filename: "service-worker.js" });
-  return { handlers, stored };
+  return { handlers, stored, context };
 }
 
 async function runInstall(harness) {
@@ -62,6 +62,18 @@ assert.ok(success.stored.includes("./webgpu-failure-guard.js"));
 assert.ok(success.stored.includes("./browser-native-ai.js"));
 assert.ok(success.stored.includes("./ai-lite-router.js"));
 assert.ok(success.stored.includes("./cloud-ai.js"));
+assert.ok(success.stored.includes("./analysis-choice.js"));
+const choiceRequest = new Request("https://example.test/analysis-choice.js?v=1.30");
+const cachedChoice = new Response("cached choice script");
+success.context.fetch = async () => { throw new TypeError("Offline"); };
+success.context.caches.match = async (request, options) => {
+  assert.equal(request, choiceRequest);
+  assert.equal(options.ignoreSearch, true);
+  return cachedChoice;
+};
+let choiceResponse;
+success.handlers.get("fetch")({ request: choiceRequest, respondWith(promise) { choiceResponse = promise; } });
+assert.equal(await choiceResponse, cachedChoice);
 for (const host of ["api.anthropic.com", "api.openai.com", "tuvi.example.workers.dev"]) {
   success.handlers.get("fetch")({
     request: new Request(`https://${host}/health`),
