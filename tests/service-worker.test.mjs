@@ -63,7 +63,7 @@ assert.ok(success.stored.includes("./browser-native-ai.js"));
 assert.ok(success.stored.includes("./ai-lite-router.js"));
 assert.ok(success.stored.includes("./cloud-ai.js"));
 assert.ok(success.stored.includes("./analysis-choice.js"));
-const choiceRequest = new Request("https://example.test/analysis-choice.js?v=1.31");
+const choiceRequest = new Request("https://example.test/analysis-choice.js?v=1.32");
 const cachedChoice = new Response("cached choice script");
 success.context.fetch = async () => { throw new TypeError("Offline"); };
 success.context.caches.match = async (request, options) => {

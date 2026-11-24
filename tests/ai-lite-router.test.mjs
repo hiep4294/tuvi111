@@ -9,7 +9,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = readFileSync(join(root, "ai-lite-router.js"), "utf8");
 const autonomous = readFileSync(join(root, "autonomous.js"), "utf8");
 
-assert.match(source, /VERSION = "1.7.0"/);
+assert.match(source, /VERSION = "1.8.0"/);
 assert.match(source, /GPU_LITE_MODEL = "Qwen3-1\.7B-q4f16_1-MLC"/);
 assert.match(source, /buildBrowserSummaryPrompt/);
 assert.match(source, /buildCompactEvidenceText/);
